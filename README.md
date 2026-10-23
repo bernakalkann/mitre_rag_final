@@ -28,12 +28,12 @@ Tamamlanan haftalara ait çıktılar aşağıda listelenmiştir.
 | 1 | MITRE ATT&CK yapısını inceleme | [Kavram notları ve proje tanımı](docs/01_kavramlar_ve_proje.md) | Tamamlandı |
 | 2 | RAG ve bilgi erişimi temellerini inceleme | [Kısa literatür özeti](docs/02_literatur.md) | Tamamlandı |
 | 3 | Gereksinimleri belirleme ve mevcut kodu inceleme | [Gereksinimler ve teknik durum notu](docs/03_gereksinimler_ve_inceleme.md) | Tamamlandı |
+| 4 | Teknoloji seçimi ve sistem mimarisini hazırlama | [Mimari ve teknoloji listesi](docs/04_mimari.md) | Tamamlandı |
 
 ## Sonraki görevler
 
 | Hafta | Planlanan çalışma |
 |---|---|
-| 4 | Teknoloji ve mimari |
 | 5 | ATT&CK veri yapısı |
 | 6 | Ortam ve veri hazırlığı |
 | 7 | Anlamsal arama |
