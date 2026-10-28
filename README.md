@@ -29,12 +29,12 @@ Tamamlanan haftalara ait çıktılar aşağıda listelenmiştir.
 | 2 | RAG ve bilgi erişimi temellerini inceleme | [Kısa literatür özeti](docs/02_literatur.md) | Tamamlandı |
 | 3 | Gereksinimleri belirleme ve mevcut kodu inceleme | [Gereksinimler ve teknik durum notu](docs/03_gereksinimler_ve_inceleme.md) | Tamamlandı |
 | 4 | Teknoloji seçimi ve sistem mimarisini hazırlama | [Mimari ve teknoloji listesi](docs/04_mimari.md) | Tamamlandı |
+| 5 | ATT&CK veri yapısını inceleme | [Veri modeli](docs/05_veri_modeli.md) ve [örnek kayıtlar](evidence/sample_records.json) | Tamamlandı |
 
 ## Sonraki görevler
 
 | Hafta | Planlanan çalışma |
 |---|---|
-| 5 | ATT&CK veri yapısı |
 | 6 | Ortam ve veri hazırlığı |
 | 7 | Anlamsal arama |
 | 8 | Temel RAG akışı |
