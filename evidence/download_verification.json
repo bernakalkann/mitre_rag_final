@@ -1,0 +1,20 @@
+{
+  "attack_version": "19.1",
+  "counts": {
+    "attack_patterns": 858,
+    "excluded_inactive": 161,
+    "active_records": 697,
+    "techniques": 222,
+    "subtechniques": 475
+  },
+  "source_sha256": "bdf1ce86a4e604214c5076d37ae4dcb322678afc528df8492e6fdc1b554f5da3",
+  "records_sha256": "fef9134bf87d247abea1b2c4124c09e6a27a844ca0c6eaba371d129248906237",
+  "provenance": {
+    "source_url": "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack-19.1.json",
+    "downloaded_at": "2026-11-05T13:19:11.615758+00:00",
+    "attack_version": "19.1",
+    "sha256": "bdf1ce86a4e604214c5076d37ae4dcb322678afc528df8492e6fdc1b554f5da3",
+    "file_name": "enterprise-attack.json",
+    "size_bytes": 53277393
+  }
+}
