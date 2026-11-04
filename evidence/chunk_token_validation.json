@@ -1,0 +1,6 @@
+{
+  "chunk_count": 1993,
+  "max_chunk_tokens": 128,
+  "model_token_limit": 128,
+  "over_limit_count": 0
+}

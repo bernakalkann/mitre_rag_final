@@ -1,0 +1,75 @@
+{
+  "query": "The adversary created a scheduled task to run a payload after reboot.",
+  "results": [
+    {
+      "rank": 1,
+      "attack_id": "T1053",
+      "name": "Scheduled Task/Job",
+      "score": 0.6224125623703003,
+      "source_url": "https://attack.mitre.org/techniques/T1053",
+      "parent_attack_id": null,
+      "evidence_excerpt": "Scheduled Task/Job: Adversaries may abuse task scheduling functionality to facilitate initial or recurring execution of malicious code. Utilities exist within all major operating systems to schedule programs or scripts to be executed at a specified date and time. A task can also be scheduled on a remote system, provided the proper authentication is met (ex: RPC and file and printer sharing in Windows environments). Scheduling a task on a remote system typically may require being a member of an admin or otherwise privileged group on the remote system. Adversaries may use"
+    },
+    {
+      "rank": 2,
+      "attack_id": "T1053.005",
+      "name": "Scheduled Task",
+      "score": 0.5864689350128174,
+      "source_url": "https://attack.mitre.org/techniques/T1053/005",
+      "parent_attack_id": "T1053",
+      "evidence_excerpt": "Scheduled Task: ly, adversaries have used the Windows netapi32 library and Windows Management Instrumentation (WMI) to create a scheduled task. Adversaries may also utilize the Powershell Cmdlet `Invoke-CimMethod`, which leverages WMI class `PS_ScheduledTask` to create a scheduled task via an XML path. An adversary may use Windows Task Scheduler to execute programs at system startup or on a scheduled basis for persistence. The Windows Task Scheduler can also be abused to conduct remote Execut"
+    },
+    {
+      "rank": 3,
+      "attack_id": "T1543",
+      "name": "Create or Modify System Process",
+      "score": 0.582254946231842,
+      "source_url": "https://attack.mitre.org/techniques/T1543",
+      "parent_attack_id": null,
+      "evidence_excerpt": "Create or Modify System Process: Adversaries may create or modify system-level processes to repeatedly execute malicious payloads as part of persistence. When operating systems boot up, they can start processes that perform background system functions. On Windows and Linux, these system processes are referred to as services. On macOS, launchd processes known as Launch Daemon and Launch Agent are run to finish system initialization and load user specific parameters. Adversaries may install new services, daemons, or agents that can be configured to execute at startup or"
+    },
+    {
+      "rank": 4,
+      "attack_id": "T1529",
+      "name": "System Shutdown/Reboot",
+      "score": 0.5606689453125,
+      "source_url": "https://attack.mitre.org/techniques/T1529",
+      "parent_attack_id": null,
+      "evidence_excerpt": "System Shutdown/Reboot: boot again. Adversaries may attempt to shutdown/reboot a system after impacting it in other ways, such as Disk Structure Wipe or Inhibit System Recovery, to hasten the intended effects on system availability."
+    },
+    {
+      "rank": 5,
+      "attack_id": "T1543.001",
+      "name": "Launch Agent",
+      "score": 0.5382403135299683,
+      "source_url": "https://attack.mitre.org/techniques/T1543/001",
+      "parent_attack_id": "T1543",
+      "evidence_excerpt": "Launch Agent: Adversaries may create or modify launch agents to repeatedly execute malicious payloads as part of persistence. When a user logs in, a per-user launchd process is started which loads the parameters for each launch-on-demand user agent from the property list (.plist) file found in /System/Library/LaunchAgents , /Library/LaunchAgents , and ~/Library/LaunchAgents . Property list files use the Label , ProgramArguments"
+    }
+  ],
+  "query_and_ranking_seconds": 0.017576791055034846,
+  "timing_excludes_model_load": true,
+  "index_manifest": {
+    "model_id": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "model_revision": "e8f8c211226b894fcb81acc59f3b34ba3efd5f42",
+    "max_seq_length": 128,
+    "device": "cpu",
+    "record_count": 697,
+    "chunk_count": 1993,
+    "embedding_dimension": 384,
+    "index_seconds": 11.710047334025148,
+    "source_records_sha256": "fef9134bf87d247abea1b2c4124c09e6a27a844ca0c6eaba371d129248906237",
+    "artifacts": {
+      "vectors.npy": "5c8363a8165946f958ede7a25e988b2136f4bd46c30ffd8588b5365d068e574d",
+      "chunks.json": "a8721473f39fac51a5c02f47eb18ae55687933f8ebd3ac787ce938b8157972a4",
+      "records.json": "1584b409adee39faa946d140dce7a47b7474e8e7cd57ab099bcee6cb98098219"
+    },
+    "packages": {
+      "numpy": "2.5.1",
+      "sentence-transformers": "3.3.1",
+      "torch": "2.13.0",
+      "transformers": "4.46.3"
+    }
+  },
+  "notice": "Cosine similarity is not a probability or a confirmed attack classification."
+}

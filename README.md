@@ -31,12 +31,12 @@ Tamamlanan haftalara ait çıktılar aşağıda listelenmiştir.
 | 4 | Teknoloji seçimi ve sistem mimarisini hazırlama | [Mimari ve teknoloji listesi](docs/04_mimari.md) | Tamamlandı |
 | 5 | ATT&CK veri yapısını inceleme | [Veri modeli](docs/05_veri_modeli.md) ve [örnek kayıtlar](evidence/sample_records.json) | Tamamlandı |
 | 6 | Ortam ve veri hazırlığını yapma | [Çalışan veri işleme adımı](docs/06_ortam_ve_veri.md) | Tamamlandı |
+| 7 | Embedding üretme ve benzerlik aramasını geliştirme | [Anlamsal arama modülü](docs/07_anlamsal_arama.md) ve [demo çıktıları](evidence/demo_summary.json) | Tamamlandı |
 
 ## Sonraki görevler
 
 | Hafta | Planlanan çalışma |
 |---|---|
-| 7 | Anlamsal arama |
 | 8 | Temel RAG akışı |
 | 9 | BM25 |
 | 10 | Hibrit arama |

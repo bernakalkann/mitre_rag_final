@@ -1,0 +1,75 @@
+{
+  "query": "A process accessed LSASS memory to obtain credentials.",
+  "results": [
+    {
+      "rank": 1,
+      "attack_id": "T1003.001",
+      "name": "LSASS Memory",
+      "score": 0.8611406683921814,
+      "source_url": "https://attack.mitre.org/techniques/T1003/001",
+      "parent_attack_id": "T1003",
+      "evidence_excerpt": "LSASS Memory: Adversaries may attempt to access credential material stored in the process memory of the Local Security Authority Subsystem Service (LSASS). After a user logs on, the system generates and stores a variety of credential materials in LSASS process memory. These credential materials can be harvested by an administrative user or SYSTEM and used to conduct Lateral Movement using Use Alternate Authentication Material. As well as in-memory techniques, the LSASS process memory can be dumped from the target host and analyzed on a local system. For example"
+    },
+    {
+      "rank": 2,
+      "attack_id": "T1187",
+      "name": "Forced Authentication",
+      "score": 0.6499989628791809,
+      "source_url": "https://attack.mitre.org/techniques/T1187",
+      "parent_attack_id": null,
+      "evidence_excerpt": "Forced Authentication: ly gather credentials. Alternatively, by leveraging the EfsRpcOpenFileRaw function, an adversary can send SMB requests to a remote system's MS-EFSRPC interface and force the victim computer to initiate an authentication procedure and share its authentication details. The Encrypting File System Remote Protocol (EFSRPC) is a protocol used in Windows networks for maintenance and management operations on encrypted data that is stored remotely to be accessed over a network. Utilization of EfsRpcOpenFileRa"
+    },
+    {
+      "rank": 3,
+      "attack_id": "T1003.004",
+      "name": "LSA Secrets",
+      "score": 0.6423596143722534,
+      "source_url": "https://attack.mitre.org/techniques/T1003/004",
+      "parent_attack_id": "T1003",
+      "evidence_excerpt": "LSA Secrets: Adversaries with SYSTEM access to a host may attempt to access Local Security Authority (LSA) secrets, which can contain a variety of different credential materials, such as credentials for service accounts. LSA secrets are stored in the registry at HKEY_LOCAL_MACHINE\\SECURITY\\Policy\\Secrets . LSA secrets can also be dumped from memory. Reg can be used to extract from the Registry. Mimikatz can be used to extract secrets from memory."
+    },
+    {
+      "rank": 4,
+      "attack_id": "T1547.008",
+      "name": "LSASS Driver",
+      "score": 0.5652869343757629,
+      "source_url": "https://attack.mitre.org/techniques/T1547/008",
+      "parent_attack_id": "T1547",
+      "evidence_excerpt": "LSASS Driver: (LSASS) lsass.exe process. Adversaries may target LSASS drivers to obtain persistence. By either replacing or adding illegitimate drivers (e.g., Hijack Execution Flow), an adversary can use LSA operations to continuously execute malicious payloads."
+    },
+    {
+      "rank": 5,
+      "attack_id": "T1003.007",
+      "name": "Proc Filesystem",
+      "score": 0.5625185966491699,
+      "source_url": "https://attack.mitre.org/techniques/T1003/007",
+      "parent_attack_id": "T1003",
+      "evidence_excerpt": "Proc Filesystem: When running without privileged access, processes can still view their own virtual memory locations. Some services or programs may save credentials in clear text inside the process’s memory. If running as or with the permissions of a web browser, a process can search the `/maps` & `/mem` locations for common website credential patterns (that can also be used to find adjacent memory within the same structure) in which hashes or cleartext credentials may be located."
+    }
+  ],
+  "query_and_ranking_seconds": 0.017494916974101216,
+  "timing_excludes_model_load": true,
+  "index_manifest": {
+    "model_id": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "model_revision": "e8f8c211226b894fcb81acc59f3b34ba3efd5f42",
+    "max_seq_length": 128,
+    "device": "cpu",
+    "record_count": 697,
+    "chunk_count": 1993,
+    "embedding_dimension": 384,
+    "index_seconds": 11.710047334025148,
+    "source_records_sha256": "fef9134bf87d247abea1b2c4124c09e6a27a844ca0c6eaba371d129248906237",
+    "artifacts": {
+      "vectors.npy": "5c8363a8165946f958ede7a25e988b2136f4bd46c30ffd8588b5365d068e574d",
+      "chunks.json": "a8721473f39fac51a5c02f47eb18ae55687933f8ebd3ac787ce938b8157972a4",
+      "records.json": "1584b409adee39faa946d140dce7a47b7474e8e7cd57ab099bcee6cb98098219"
+    },
+    "packages": {
+      "numpy": "2.5.1",
+      "sentence-transformers": "3.3.1",
+      "torch": "2.13.0",
+      "transformers": "4.46.3"
+    }
+  },
+  "notice": "Cosine similarity is not a probability or a confirmed attack classification."
+}

@@ -1,0 +1,6 @@
+[
+  {"query": "An attacker used PowerShell to execute a malicious script on a Windows host.", "inspect_candidate": "T1059.001"},
+  {"query": "Saldırgan Windows bilgisayarda PowerShell kullanarak kötü amaçlı bir betik çalıştırdı.", "inspect_candidate": "T1059.001"},
+  {"query": "The adversary created a scheduled task to run a payload after reboot.", "inspect_candidate": "T1053.005"},
+  {"query": "A process accessed LSASS memory to obtain credentials.", "inspect_candidate": "T1003.001"}
+]

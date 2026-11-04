@@ -9,7 +9,7 @@ from .data import prepare, sha256, write_json
 
 
 def main():
-    parser = argparse.ArgumentParser(description="MITRE-RAG capstone: weeks 1–6")
+    parser = argparse.ArgumentParser(description="MITRE-RAG capstone: weeks 1–7")
     commands = parser.add_subparsers(dest="command", required=True)
     download = commands.add_parser("download", help="Download the pinned reference release")
     download.add_argument("--output", default="data/raw/enterprise-attack.json")
@@ -18,6 +18,17 @@ def main():
     data.add_argument("--provenance", default="data/raw/provenance.json")
     data.add_argument("--output", default="data/processed/techniques.jsonl")
     data.add_argument("--report", default="evidence/data_report.json")
+    index = commands.add_parser("index", help="Generate real Sentence Transformer embeddings")
+    index.add_argument("--records", default="data/processed/techniques.jsonl")
+    index.add_argument("--output", default="data/index")
+    index.add_argument("--revision", default=None)
+    index.add_argument("--offline", action="store_true")
+    query = commands.add_parser("search", help="Find candidate techniques")
+    query.add_argument("query")
+    query.add_argument("--index", default="data/index")
+    query.add_argument("--top-k", type=int, default=5)
+    query.add_argument("--output", default=None)
+    query.add_argument("--offline", action="store_true")
     args = parser.parse_args()
     if args.command == "download":
         # Version and content hash identify the actual reference dataset, not 'latest'.
@@ -38,6 +49,14 @@ def main():
     elif args.command == "prepare":
         report = prepare(args.source, args.output, args.provenance)
         write_json(args.report, report)
+    elif args.command == "index":
+        from .search import build_index
+        report = build_index(args.records, args.output, revision=args.revision, offline=args.offline)
+    else:
+        from .search import search
+        report = search(args.index, args.query, args.top_k, args.offline)
+        if args.output:
+            write_json(args.output, report)
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
 

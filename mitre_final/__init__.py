@@ -1,1 +1,1 @@
-"""ATT&CK data preparation for the capstone project."""
+"""Capstone implementation through week 7 of the approved plan."""

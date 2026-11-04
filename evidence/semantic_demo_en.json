@@ -1,0 +1,75 @@
+{
+  "query": "An attacker used PowerShell to execute a malicious script on a Windows host.",
+  "results": [
+    {
+      "rank": 1,
+      "attack_id": "T1059.001",
+      "name": "PowerShell",
+      "score": 0.7819075584411621,
+      "source_url": "https://attack.mitre.org/techniques/T1059/001",
+      "parent_attack_id": "T1059",
+      "evidence_excerpt": "PowerShell: Adversaries may abuse PowerShell commands and scripts for execution. PowerShell is a powerful interactive command-line interface and scripting environment included in the Windows operating system. Adversaries can use PowerShell to perform a number of actions, including discovery of information and execution of code. Examples include the Start-Process cmdlet which can be used to run an executable and the Invoke-Command cmdlet which runs a command locally or on a remote computer (though administrator permissions are required to use PowerShell to connect to"
+    },
+    {
+      "rank": 2,
+      "attack_id": "T1546.013",
+      "name": "PowerShell Profile",
+      "score": 0.6391596794128418,
+      "source_url": "https://attack.mitre.org/techniques/T1546/013",
+      "parent_attack_id": "T1546",
+      "evidence_excerpt": "PowerShell Profile: Adversaries may gain persistence and elevate privileges by executing malicious content triggered by PowerShell profiles. A PowerShell profile ( profile.ps1 ) is a script that runs when PowerShell starts and can be used as a logon script to customize user environments. PowerShell supports several profiles depending on the user or host program. For example, there can be different profiles for PowerShell host programs such as the PowerShell console, PowerShell ISE or Visual Studio Code. An administrator can also configure a"
+    },
+    {
+      "rank": 3,
+      "attack_id": "T1689",
+      "name": "Downgrade Attack",
+      "score": 0.6328390836715698,
+      "source_url": "https://attack.mitre.org/techniques/T1689",
+      "parent_attack_id": null,
+      "evidence_excerpt": "Downgrade Attack: -in-the-Middle or Network Sniffing. For example, PowerShell versions 5+ includes Script Block Logging (SBL), which can record executed script content. However, adversaries may attempt to execute a previous version of PowerShell that does not support SBL with the intent to impair defenses while running malicious scripts that may have otherwise been detected. Adversaries may similarly target network traffic to downgrade from an encrypted HTTPS connection to an unsecured HTTP connection that exposes network data in clear text"
+    },
+    {
+      "rank": 4,
+      "attack_id": "T1574.014",
+      "name": "AppDomainManager",
+      "score": 0.625698983669281,
+      "source_url": "https://attack.mitre.org/techniques/T1574/014",
+      "parent_attack_id": "T1574",
+      "evidence_excerpt": "AppDomainManager: settings may be tampered with to instruct otherwise benign .NET applications to load a malicious assembly (identified by name) into the target process."
+    },
+    {
+      "rank": 5,
+      "attack_id": "T1216.002",
+      "name": "SyncAppvPublishingServer",
+      "score": 0.6175474524497986,
+      "source_url": "https://attack.mitre.org/techniques/T1216/002",
+      "parent_attack_id": "T1216",
+      "evidence_excerpt": "SyncAppvPublishingServer: Adversaries may abuse SyncAppvPublishingServer.vbs to proxy execution of malicious PowerShell commands. SyncAppvPublishingServer.vbs is a Visual Basic script associated with how Windows virtualizes applications (Microsoft Application Virtualization, or App-V). For example, Windows may render Win32 applications to users as virtual applications, allowing users to launch and interact with them as if they were installed locally. The SyncAppvPublishingServer.vbs script is legitimate, may be"
+    }
+  ],
+  "query_and_ranking_seconds": 0.03868016699561849,
+  "timing_excludes_model_load": true,
+  "index_manifest": {
+    "model_id": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "model_revision": "e8f8c211226b894fcb81acc59f3b34ba3efd5f42",
+    "max_seq_length": 128,
+    "device": "cpu",
+    "record_count": 697,
+    "chunk_count": 1993,
+    "embedding_dimension": 384,
+    "index_seconds": 11.710047334025148,
+    "source_records_sha256": "fef9134bf87d247abea1b2c4124c09e6a27a844ca0c6eaba371d129248906237",
+    "artifacts": {
+      "vectors.npy": "5c8363a8165946f958ede7a25e988b2136f4bd46c30ffd8588b5365d068e574d",
+      "chunks.json": "a8721473f39fac51a5c02f47eb18ae55687933f8ebd3ac787ce938b8157972a4",
+      "records.json": "1584b409adee39faa946d140dce7a47b7474e8e7cd57ab099bcee6cb98098219"
+    },
+    "packages": {
+      "numpy": "2.5.1",
+      "sentence-transformers": "3.3.1",
+      "torch": "2.13.0",
+      "transformers": "4.46.3"
+    }
+  },
+  "notice": "Cosine similarity is not a probability or a confirmed attack classification."
+}

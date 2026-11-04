@@ -1,0 +1,54 @@
+[
+  {
+    "name": "semantic_demo_en",
+    "query": "An attacker used PowerShell to execute a malicious script on a Windows host.",
+    "inspect_candidate": "T1059.001",
+    "top_5": [
+      "T1059.001",
+      "T1546.013",
+      "T1689",
+      "T1574.014",
+      "T1216.002"
+    ],
+    "seconds": 0.03868016699561849
+  },
+  {
+    "name": "semantic_demo_tr",
+    "query": "Saldırgan Windows bilgisayarda PowerShell kullanarak kötü amaçlı bir betik çalıştırdı.",
+    "inspect_candidate": "T1059.001",
+    "top_5": [
+      "T1059.001",
+      "T1546.013",
+      "T1564.003",
+      "T1689",
+      "T1543.003"
+    ],
+    "seconds": 0.017293957993388176
+  },
+  {
+    "name": "semantic_demo_task",
+    "query": "The adversary created a scheduled task to run a payload after reboot.",
+    "inspect_candidate": "T1053.005",
+    "top_5": [
+      "T1053",
+      "T1053.005",
+      "T1543",
+      "T1529",
+      "T1543.001"
+    ],
+    "seconds": 0.017576791055034846
+  },
+  {
+    "name": "semantic_demo_lsass",
+    "query": "A process accessed LSASS memory to obtain credentials.",
+    "inspect_candidate": "T1003.001",
+    "top_5": [
+      "T1003.001",
+      "T1187",
+      "T1003.004",
+      "T1547.008",
+      "T1003.007"
+    ],
+    "seconds": 0.017494916974101216
+  }
+]

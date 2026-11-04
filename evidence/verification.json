@@ -1,0 +1,19 @@
+{
+  "python": "3.12.13",
+  "test_command": "python -m unittest discover -s tests -v",
+  "exit_code": 0,
+  "output": "test_duplicate_ids_rejected (test_core.DataTests.test_duplicate_ids_rejected) ... ok\ntest_empty_bundle_rejected (test_core.DataTests.test_empty_bundle_rejected) ... ok\ntest_filters_and_parent (test_core.DataTests.test_filters_and_parent) ... ok\ntest_stale_provenance_is_rejected (test_core.DataTests.test_stale_provenance_is_rejected) ... ok\ntest_bad_vectors_rejected (test_core.SearchTests.test_bad_vectors_rejected) ... ok\ntest_chunking_checks_reencoded_boundaries (test_core.SearchTests.test_chunking_checks_reencoded_boundaries) ... ok\ntest_chunking_preserves_full_description (test_core.SearchTests.test_chunking_preserves_full_description) ... ok\ntest_cosine_ranking_deduplicates_chunks (test_core.SearchTests.test_cosine_ranking_deduplicates_chunks) ... ok\ntest_invalid_top_k (test_core.SearchTests.test_invalid_top_k) ... ok\n\n----------------------------------------------------------------------\nRan 9 tests in 0.002s\n\nOK\n",
+  "real_stix_preparation": "passed; see data_report.json",
+  "pinned_data_download": "passed; see download_verification.json",
+  "real_embedding_index": "passed; see index_manifest.json",
+  "real_semantic_queries": "passed; four real-model demos; see demo_summary.json",
+  "chunk_token_limit": "passed; no chunk exceeds 128 tokens",
+  "negative_integration_checks": {
+    "blank_query": "rejected_as_expected",
+    "overlong_query": "rejected_as_expected",
+    "tampered_index": "rejected_as_expected"
+  },
+  "clean_environment_install": "not_separately_verified; existing Python 3.12 environment used",
+  "synthetic_vectors_are_model_accuracy_evidence": false,
+  "demo_results_are_independent_benchmark": false
+}

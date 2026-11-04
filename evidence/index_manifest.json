@@ -1,0 +1,22 @@
+{
+  "model_id": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+  "model_revision": "e8f8c211226b894fcb81acc59f3b34ba3efd5f42",
+  "max_seq_length": 128,
+  "device": "cpu",
+  "record_count": 697,
+  "chunk_count": 1993,
+  "embedding_dimension": 384,
+  "index_seconds": 11.710047334025148,
+  "source_records_sha256": "fef9134bf87d247abea1b2c4124c09e6a27a844ca0c6eaba371d129248906237",
+  "artifacts": {
+    "vectors.npy": "5c8363a8165946f958ede7a25e988b2136f4bd46c30ffd8588b5365d068e574d",
+    "chunks.json": "a8721473f39fac51a5c02f47eb18ae55687933f8ebd3ac787ce938b8157972a4",
+    "records.json": "1584b409adee39faa946d140dce7a47b7474e8e7cd57ab099bcee6cb98098219"
+  },
+  "packages": {
+    "numpy": "2.5.1",
+    "sentence-transformers": "3.3.1",
+    "torch": "2.13.0",
+    "transformers": "4.46.3"
+  }
+}
