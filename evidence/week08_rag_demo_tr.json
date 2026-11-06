@@ -1,0 +1,80 @@
+{
+  "query": "Saldırgan Windows bilgisayarda PowerShell kullanarak kötü amaçlı bir betik çalıştırdı.",
+  "status": "matched",
+  "summary": "Saldırgan Windows bilgisayarda PowerShell kullanarak kötü amaçlı bir betik çalıştırdı. Bu davranış, PowerShell üzerinden kod çalıştırma tekniği ile eşleşmektedir.",
+  "matches": [
+    {
+      "source_id": "S1",
+      "explanation": "Saldırgan PowerShell kullanarak kötü amaçlı bir betik çalıştırdığı için, bu davranış PowerShell üzerinden kod çalıştırma tekniği ile eşleşmektedir.",
+      "evidence_quote": "PowerShell: Adversaries may abuse PowerShell commands and scripts for execution.",
+      "attack_id": "T1059.001",
+      "name": "PowerShell",
+      "source_url": "https://attack.mitre.org/techniques/T1059/001",
+      "retrieval_score": 0.7616864442825317
+    }
+  ],
+  "additional_data_needed": [
+    "Kötü amaçlı betik neydi?",
+    "Betik nasıl çalıştırıldı?",
+    "Saldırı sonucunda hangi etkiler gözlemlendi?"
+  ],
+  "retrieved_sources": [
+    {
+      "source_id": "S1",
+      "attack_id": "T1059.001",
+      "name": "PowerShell",
+      "source_url": "https://attack.mitre.org/techniques/T1059/001",
+      "excerpt": "PowerShell: Adversaries may abuse PowerShell commands and scripts for execution. PowerShell is a powerful interactive command-line interface and scripting environment included in the Windows operating system. Adversaries can use PowerShell to perform a number of actions, including discovery of information and execution of code. Examples include the Start-Process cmdlet which can be used to run an executable and the Invoke-Command cmdlet which runs a command locally or on a remote computer (though administrator permissions are required to use PowerShell to connect to",
+      "retrieval_score": 0.7616864442825317
+    },
+    {
+      "source_id": "S2",
+      "attack_id": "T1546.013",
+      "name": "PowerShell Profile",
+      "source_url": "https://attack.mitre.org/techniques/T1546/013",
+      "excerpt": "PowerShell Profile: Adversaries may gain persistence and elevate privileges by executing malicious content triggered by PowerShell profiles. A PowerShell profile ( profile.ps1 ) is a script that runs when PowerShell starts and can be used as a logon script to customize user environments. PowerShell supports several profiles depending on the user or host program. For example, there can be different profiles for PowerShell host programs such as the PowerShell console, PowerShell ISE or Visual Studio Code. An administrator can also configure a",
+      "retrieval_score": 0.5980352759361267
+    },
+    {
+      "source_id": "S3",
+      "attack_id": "T1564.003",
+      "name": "Hidden Window",
+      "source_url": "https://attack.mitre.org/techniques/T1564/003",
+      "excerpt": "Hidden Window: value, PowerShell windows will open off screen and be hidden. In addition, Windows supports the `CreateDesktop()` API that can create a hidden desktop window with its own corresponding explorer.exe process. All applications running on the hidden desktop window, such as a hidden VNC (hVNC) session, will be invisible to other desktops windows. Adversaries may also leverage cmd.exe as a parent process, and then utilize a LOLBin, such as DeviceCredentialDeployment.exe, to hide windows",
+      "retrieval_score": 0.5936453342437744
+    }
+  ],
+  "generation": {
+    "model": "qwen3:8b",
+    "model_digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+    "ollama_version": "0.32.5",
+    "endpoint": "http://127.0.0.1:11434",
+    "think": false,
+    "temperature": 0,
+    "num_ctx": 8192,
+    "num_predict": 1200,
+    "seconds": 12.004197417001706,
+    "prompt_tokens": 1021,
+    "generated_tokens": 186
+  },
+  "retrieval": {
+    "method": "semantic",
+    "top_k": 3,
+    "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "embedding_revision": "e8f8c211226b894fcb81acc59f3b34ba3efd5f42",
+    "source_records_sha256": "fef9134bf87d247abea1b2c4124c09e6a27a844ca0c6eaba371d129248906237"
+  },
+  "timing": {
+    "retrieval_seconds_including_model_load": 2.6590033340035006,
+    "total_seconds": 14.666316209011711
+  },
+  "validation": {
+    "known_source_ids": true,
+    "quotes_present_in_cited_sources": true,
+    "technique_metadata_from_index": true,
+    "semantic_correctness_guaranteed": false
+  },
+  "python_version": "3.12.13",
+  "created_at": "2026-11-06T11:27:01.951215+00:00",
+  "notice": "Bu sonuç analiz desteğidir. Teknik adayları saldırının kesin kanıtı değildir. Kosinüs benzerliği güven olasılığı değildir. Sonuçları uzman değerlendirmelidir."
+}

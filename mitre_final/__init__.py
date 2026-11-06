@@ -1,1 +1,1 @@
-"""Capstone implementation through week 7 of the approved plan."""
+"""Capstone implementation through week 8 of the approved plan."""

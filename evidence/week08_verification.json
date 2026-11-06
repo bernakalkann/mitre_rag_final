@@ -1,0 +1,72 @@
+{
+  "scope": "Week 8 basic RAG; first end-to-end demo",
+  "checked_at": "2026-11-06T11:29:02.809243+00:00",
+  "python": "3.12.13",
+  "unit_tests": {
+    "command": "python -m unittest discover -s tests -v",
+    "passed": 28,
+    "failed": 0,
+    "real_model_accuracy_benchmark": false
+  },
+  "live_demos": [
+    {
+      "case": "tr",
+      "file": "evidence/week08_rag_demo_tr.json",
+      "sha256": "0f8f8db889e8b166766a9860eb0834534f55a75faf40dade5156058f1dc9da4c",
+      "status": "matched",
+      "matched_techniques": [
+        "T1059.001"
+      ],
+      "total_seconds": 14.666316209011711,
+      "reference_validation": {
+        "known_source_ids": true,
+        "quotes_present_in_cited_sources": true,
+        "technique_metadata_from_index": true,
+        "semantic_correctness_guaranteed": false
+      }
+    },
+    {
+      "case": "en",
+      "file": "evidence/week08_rag_demo_en.json",
+      "sha256": "fb402d0b78ba11d8b4ddff09c38a260e88c369d45d683dc6be6d2997777b67f6",
+      "status": "matched",
+      "matched_techniques": [
+        "T1003.001",
+        "T1003.004"
+      ],
+      "total_seconds": 22.44435937498929,
+      "reference_validation": {
+        "known_source_ids": true,
+        "quotes_present_in_cited_sources": true,
+        "technique_metadata_from_index": true,
+        "semantic_correctness_guaranteed": false
+      }
+    },
+    {
+      "case": "benign",
+      "file": "evidence/week08_rag_demo_benign.json",
+      "sha256": "a3ba4779afe804486a0c4ee24b59ec68663c698806566f8fe71c6bcefe9f61e7",
+      "status": "insufficient_context",
+      "matched_techniques": [],
+      "total_seconds": 9.601508082996588,
+      "reference_validation": {
+        "known_source_ids": true,
+        "quotes_present_in_cited_sources": true,
+        "technique_metadata_from_index": true,
+        "semantic_correctness_guaranteed": false
+      }
+    }
+  ],
+  "semantic_review": [
+    {
+      "case": "en",
+      "note": "LSASS example also proposed T1003.004. The incident does not sufficiently support that additional candidate; reference validity does not guarantee semantic correctness."
+    }
+  ],
+  "retrieval_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+  "generation_model": "qwen3:8b",
+  "ollama_endpoint": "http://127.0.0.1:11434",
+  "functional_demo_validated": true,
+  "independent_benchmark_performed": false,
+  "later_weeks_completed": false
+}

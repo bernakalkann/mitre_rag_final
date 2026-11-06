@@ -1,0 +1,89 @@
+{
+  "query": "A process accessed LSASS memory to obtain user credentials.",
+  "status": "matched",
+  "summary": "Olay, bir süreçin LSASS bellek erişimi ile kullanıcı kimlik bilgilerini elde etmeye çalıştığını göstermektedir.",
+  "matches": [
+    {
+      "source_id": "S1",
+      "explanation": "Olay, LSASS bellek erişimi ile kimlik bilgilerinin alınmasıyla ilişkilidir. Adversary'ler, LSASS bellek erişimi ile kimlik bilgilerini elde edebilir.",
+      "evidence_quote": "LSASS Memory: Adversaries may attempt to access credential material stored in the process memory of the Local Security Authority Subsystem Service (LSASS).",
+      "attack_id": "T1003.001",
+      "name": "LSASS Memory",
+      "source_url": "https://attack.mitre.org/techniques/T1003/001",
+      "retrieval_score": 0.8483620285987854
+    },
+    {
+      "source_id": "S2",
+      "explanation": "Olay, LSASS bellek erişimi ile kimlik bilgilerinin alınmasıyla ilişkilidir. Adversary'ler, LSASS bellek erişimi ile kimlik bilgilerini elde edebilir.",
+      "evidence_quote": "LSA Secrets: Adversaries with SYSTEM access to a host may attempt to access Local Security Authority (LSA) secrets, which can contain a variety of different credential materials, such as credentials for service accounts.",
+      "attack_id": "T1003.004",
+      "name": "LSA Secrets",
+      "source_url": "https://attack.mitre.org/techniques/T1003/004",
+      "retrieval_score": 0.6531880497932434
+    }
+  ],
+  "additional_data_needed": [
+    "Sistemde SYSTEM erişimi olan bir süreç var mı?",
+    "LSASS bellek erişimi için kullanılan araçlar nelerdir?",
+    "Kullanıcı kimlik bilgileri hangi yöntemle elde edilmiştir?"
+  ],
+  "retrieved_sources": [
+    {
+      "source_id": "S1",
+      "attack_id": "T1003.001",
+      "name": "LSASS Memory",
+      "source_url": "https://attack.mitre.org/techniques/T1003/001",
+      "excerpt": "LSASS Memory: Adversaries may attempt to access credential material stored in the process memory of the Local Security Authority Subsystem Service (LSASS). After a user logs on, the system generates and stores a variety of credential materials in LSASS process memory. These credential materials can be harvested by an administrative user or SYSTEM and used to conduct Lateral Movement using Use Alternate Authentication Material. As well as in-memory techniques, the LSASS process memory can be dumped from the target host and analyzed on a local system. For example",
+      "retrieval_score": 0.8483620285987854
+    },
+    {
+      "source_id": "S2",
+      "attack_id": "T1003.004",
+      "name": "LSA Secrets",
+      "source_url": "https://attack.mitre.org/techniques/T1003/004",
+      "excerpt": "LSA Secrets: Adversaries with SYSTEM access to a host may attempt to access Local Security Authority (LSA) secrets, which can contain a variety of different credential materials, such as credentials for service accounts. LSA secrets are stored in the registry at HKEY_LOCAL_MACHINE\\SECURITY\\Policy\\Secrets . LSA secrets can also be dumped from memory. Reg can be used to extract from the Registry. Mimikatz can be used to extract secrets from memory.",
+      "retrieval_score": 0.6531880497932434
+    },
+    {
+      "source_id": "S3",
+      "attack_id": "T1187",
+      "name": "Forced Authentication",
+      "source_url": "https://attack.mitre.org/techniques/T1187",
+      "excerpt": "Forced Authentication: ly gather credentials. Alternatively, by leveraging the EfsRpcOpenFileRaw function, an adversary can send SMB requests to a remote system's MS-EFSRPC interface and force the victim computer to initiate an authentication procedure and share its authentication details. The Encrypting File System Remote Protocol (EFSRPC) is a protocol used in Windows networks for maintenance and management operations on encrypted data that is stored remotely to be accessed over a network. Utilization of EfsRpcOpenFileRa",
+      "retrieval_score": 0.6477063894271851
+    }
+  ],
+  "generation": {
+    "model": "qwen3:8b",
+    "model_digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+    "ollama_version": "0.32.5",
+    "endpoint": "http://127.0.0.1:11434",
+    "think": false,
+    "temperature": 0,
+    "num_ctx": 8192,
+    "num_predict": 1200,
+    "seconds": 20.323235833027866,
+    "prompt_tokens": 1037,
+    "generated_tokens": 334
+  },
+  "retrieval": {
+    "method": "semantic",
+    "top_k": 3,
+    "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "embedding_revision": "e8f8c211226b894fcb81acc59f3b34ba3efd5f42",
+    "source_records_sha256": "fef9134bf87d247abea1b2c4124c09e6a27a844ca0c6eaba371d129248906237"
+  },
+  "timing": {
+    "retrieval_seconds_including_model_load": 2.1182514999527484,
+    "total_seconds": 22.44435937498929
+  },
+  "validation": {
+    "known_source_ids": true,
+    "quotes_present_in_cited_sources": true,
+    "technique_metadata_from_index": true,
+    "semantic_correctness_guaranteed": false
+  },
+  "python_version": "3.12.13",
+  "created_at": "2026-11-06T11:27:24.928368+00:00",
+  "notice": "Bu sonuç analiz desteğidir. Teknik adayları saldırının kesin kanıtı değildir. Kosinüs benzerliği güven olasılığı değildir. Sonuçları uzman değerlendirmelidir."
+}

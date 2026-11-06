@@ -9,7 +9,7 @@ from .data import prepare, sha256, write_json
 
 
 def main():
-    parser = argparse.ArgumentParser(description="MITRE-RAG capstone: weeks 1–7")
+    parser = argparse.ArgumentParser(description="MITRE-RAG capstone: weeks 1–8")
     commands = parser.add_subparsers(dest="command", required=True)
     download = commands.add_parser("download", help="Download the pinned reference release")
     download.add_argument("--output", default="data/raw/enterprise-attack.json")
@@ -29,6 +29,15 @@ def main():
     query.add_argument("--top-k", type=int, default=5)
     query.add_argument("--output", default=None)
     query.add_argument("--offline", action="store_true")
+    rag = commands.add_parser("rag", help="Retrieve ATT&CK sources and generate a checked local-model answer")
+    rag.add_argument("query")
+    rag.add_argument("--index", default="data/index")
+    rag.add_argument("--top-k", type=int, default=3)
+    rag.add_argument("--llm-model", default="qwen3:8b")
+    rag.add_argument("--ollama-url", default="http://127.0.0.1:11434")
+    rag.add_argument("--timeout", type=float, default=90)
+    rag.add_argument("--output", default=None)
+    rag.add_argument("--offline", action="store_true", help="Load embedding from cache; Ollama must still be running locally")
     args = parser.parse_args()
     if args.command == "download":
         # Version and content hash identify the actual reference dataset, not 'latest'.
@@ -52,9 +61,18 @@ def main():
     elif args.command == "index":
         from .search import build_index
         report = build_index(args.records, args.output, revision=args.revision, offline=args.offline)
-    else:
+    elif args.command == "search":
         from .search import search
         report = search(args.index, args.query, args.top_k, args.offline)
+        if args.output:
+            write_json(args.output, report)
+    else:
+        from .rag import LocalOllama, RagError, run_rag
+        try:
+            client = LocalOllama(args.llm_model, args.ollama_url, args.timeout)
+            report = run_rag(args.query, args.index, args.top_k, args.offline, client)
+        except (RagError, ValueError, FileNotFoundError) as exc:
+            parser.exit(1, f"RAG hatası: {exc}\n")
         if args.output:
             write_json(args.output, report)
     print(json.dumps(report, ensure_ascii=False, indent=2))

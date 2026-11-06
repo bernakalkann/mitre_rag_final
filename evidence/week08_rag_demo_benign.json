@@ -1,0 +1,69 @@
+{
+  "query": "Kullanıcı bilgisayarında hesap makinesini açtı.",
+  "status": "insufficient_context",
+  "summary": "Kullanıcının hesap makinesini açması, doğrudan bir saldırı tekniği ile ilişkilendirilemeyen bir davranıştır.",
+  "matches": [],
+  "additional_data_needed": [
+    "Kullanıcının hesap makinesini açma amacını belirlemek için ek bilgi gereklidir.",
+    "Kullanıcının hesap makinesini açma sırasında başka bir eylem gerçekleştirdiğini belirlemek için ek bilgi gereklidir."
+  ],
+  "retrieved_sources": [
+    {
+      "source_id": "S1",
+      "attack_id": "T1033",
+      "name": "System Owner/User Discovery",
+      "source_url": "https://attack.mitre.org/techniques/T1033",
+      "excerpt": "System Owner/User Discovery: scl . list /Users | grep -v '_' command can also be used to enumerate user accounts. Environment variables, such as %USERNAME% and $USER , may also be used to access this information. On network devices, Network Device CLI commands such as `show users` and `show ssh` can be used to display users currently logged into the device.",
+      "retrieval_score": 0.45750805735588074
+    },
+    {
+      "source_id": "S2",
+      "attack_id": "T1674",
+      "name": "Input Injection",
+      "source_url": "https://attack.mitre.org/techniques/T1674",
+      "excerpt": "Input Injection: monitors the Windows message loop to detect when a user visits bank-specific URLs. If detected, the tool then simulates keystrokes to open the developer console or select the address bar, pastes malicious JavaScript from the clipboard, and executes it - enabling manipulation of content within the browser, such as replacing bank account numbers during transactions. Adversaries have also used malicious USB devices to emulate keystrokes that launch PowerShell, leading to the download and execution of malware from adversary-controlled servers",
+      "retrieval_score": 0.44508805871009827
+    },
+    {
+      "source_id": "S3",
+      "attack_id": "T1057",
+      "name": "Process Discovery",
+      "source_url": "https://attack.mitre.org/techniques/T1057",
+      "excerpt": "Process Discovery: es using the Tasklist utility via cmd or Get-Process via PowerShell. Information about processes can also be extracted from the output of Native API calls such as CreateToolhelp32Snapshot . In Mac and Linux, this is accomplished with the ps command. Adversaries may also opt to enumerate processes via `/proc`. ESXi also supports use of the `ps` command, as well as `esxcli system process list`. On network devices, Network Device CLI commands such as `show",
+      "retrieval_score": 0.39733073115348816
+    }
+  ],
+  "generation": {
+    "model": "qwen3:8b",
+    "model_digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+    "ollama_version": "0.32.5",
+    "endpoint": "http://127.0.0.1:11434",
+    "think": false,
+    "temperature": 0,
+    "num_ctx": 8192,
+    "num_predict": 1200,
+    "seconds": 7.40632316598203,
+    "prompt_tokens": 960,
+    "generated_tokens": 116
+  },
+  "retrieval": {
+    "method": "semantic",
+    "top_k": 3,
+    "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "embedding_revision": "e8f8c211226b894fcb81acc59f3b34ba3efd5f42",
+    "source_records_sha256": "fef9134bf87d247abea1b2c4124c09e6a27a844ca0c6eaba371d129248906237"
+  },
+  "timing": {
+    "retrieval_seconds_including_model_load": 2.19266920798691,
+    "total_seconds": 9.601508082996588
+  },
+  "validation": {
+    "known_source_ids": true,
+    "quotes_present_in_cited_sources": true,
+    "technique_metadata_from_index": true,
+    "semantic_correctness_guaranteed": false
+  },
+  "python_version": "3.12.13",
+  "created_at": "2026-11-06T11:27:35.040345+00:00",
+  "notice": "Bu sonuç analiz desteğidir. Teknik adayları saldırının kesin kanıtı değildir. Kosinüs benzerliği güven olasılığı değildir. Sonuçları uzman değerlendirmelidir."
+}

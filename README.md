@@ -21,7 +21,7 @@ Zaman kalırsa reranking, örnek logların daha ayrıntılı analizi, gelişmiş
 
 ## Tamamlanan görevler
 
-Tamamlanan haftalara ait çıktılar aşağıda listelenmiştir.
+İlk 8 haftaya ait belgeler, veri işleme, anlamsal arama ve temel RAG akışı hazırlanmıştır. Olay açıklamasından kaynaklı yanıt üretimine kadar akış gerçek ATT&CK verisi, embedding modeli ve yerel LLM ile çalıştırılmıştır.
 
 | Hafta | Görev | Hazırlanan çıktı | Durum |
 |---|---|---|---|
@@ -32,15 +32,15 @@ Tamamlanan haftalara ait çıktılar aşağıda listelenmiştir.
 | 5 | ATT&CK veri yapısını inceleme | [Veri modeli](docs/05_veri_modeli.md) ve [örnek kayıtlar](evidence/sample_records.json) | Tamamlandı |
 | 6 | Ortam ve veri hazırlığını yapma | [Çalışan veri işleme adımı](docs/06_ortam_ve_veri.md) | Tamamlandı |
 | 7 | Embedding üretme ve benzerlik aramasını geliştirme | [Anlamsal arama modülü](docs/07_anlamsal_arama.md) ve [demo çıktıları](evidence/demo_summary.json) | Tamamlandı |
+| 8 | Aday tekniklerden temel yanıt akışını oluşturma | [İlk uçtan uca RAG demosu](docs/08_temel_rag.md) ve [gerçek çıktı](evidence/week08_rag_demo_tr.json) | Tamamlandı |
 
 ## Sonraki görevler
 
 | Hafta | Planlanan çalışma |
 |---|---|
-| 8 | Temel RAG akışı |
-| 9 | BM25 |
-| 10 | Hibrit arama |
-| 11 | Yerel LLM ve arayüz |
-| 12 | Test senaryoları |
-| 13 | Deney ve analiz |
-| 14 | Son kontrol ve sunum |
+| 9 | BM25 arama modülü |
+| 10 | Hibrit arama ve ilk karşılaştırmalar |
+| 11 | Yerel LLM ve kullanıcı arayüzü |
+| 12 | Doğruluğu kontrol edilmiş etiketli test senaryoları |
+| 13 | Recall@K, MRR, yanıt süresi ve hata analizi |
+| 14 | Son kontroller, rapor, demo ve sunum |

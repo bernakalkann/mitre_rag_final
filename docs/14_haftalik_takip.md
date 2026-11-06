@@ -13,7 +13,7 @@ göre düzenlenmiştir. Fiilî çalışma ve commit tarihleri korunur.
 | 5 | ATT&CK veri yapısı | Model ve gerçek örnekler hazır |
 | 6 | Ortam ve veri hazırlığı | Mevcut Python ortamında veri hattı doğrulandı; temiz ortam ayrıca denenmedi |
 | 7 | Anlamsal arama | Gerçek model indeksi ve dört sorgu demosu doğrulandı |
-| 8 | Temel RAG akışı | Planlandı |
+| 8 | Temel RAG akışı | İlk yerel LLM bağlantısı ve kaynak kontrollü uçtan uca demo doğrulandı |
 | 9 | BM25 | Planlandı |
 | 10 | Hibrit arama | Planlandı |
 | 11 | Yerel LLM ve arayüz | Planlandı |
