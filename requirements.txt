@@ -1,3 +1,4 @@
 # Python 3.12 recommended. Actual versions are recorded in the index manifest.
 numpy>=1.26,<3
 sentence-transformers>=3.3,<6
+streamlit>=1.41,<2

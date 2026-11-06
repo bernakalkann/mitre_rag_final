@@ -3,6 +3,7 @@
 - Commitleri haftalık görevlerle gruplandır; mesajları Türkçe ve "N. hafta - Haftanın konusu: yapılan iş" biçiminde yaz.
 - Kapsamın esas kaynağı: MITRE_RAG_14_Haftalik_Plan_Tablolu_Guncel_Bernanur_Kalkan.pdf.
 - Kullanıcı geliştirmeye devam edilmesini istedi. Güncel çalışma 8. hafta temel RAG akışıdır. Sonraki haftaları plan sırasıyla ilerlet.
+- Kullanıcının isteğiyle test ve sunum için basit Streamlit arayüzü öne alındı. Bu, 11. haftanın tamamlandığı anlamına gelmez; sıradaki arama çalışması 9. hafta BM25'tir.
 - Staj yönergesi teknik referanstır; oradaki zorunlulukları bu projenin zorunlulukları sayma.
 - TÜBİTAK formunu bu çalışmanın kapsam kaynağı olarak kullanma.
 - Staj deposuna ve görünürlüğüne müdahale etme. Yeni çalışma bernakalkann/mitre_rag_final içindir.

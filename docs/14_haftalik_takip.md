@@ -16,7 +16,7 @@ göre düzenlenmiştir. Fiilî çalışma ve commit tarihleri korunur.
 | 8 | Temel RAG akışı | İlk yerel LLM bağlantısı ve kaynak kontrollü uçtan uca demo doğrulandı |
 | 9 | BM25 | Planlandı |
 | 10 | Hibrit arama | Planlandı |
-| 11 | Yerel LLM ve arayüz | Planlandı |
+| 11 | Yerel LLM ve arayüz | Basit Streamlit demosu test ve sunum amacıyla öne alındı; BM25/hibrit entegrasyonu ve son kontroller bekliyor |
 | 12 | Test senaryoları | 30–40 doğrulanmış etiketli örnek planlandı |
 | 13 | Deney ve analiz | Recall@K, MRR, süre ve hata analizi planlandı |
 | 14 | Son kontrol ve sunum | Nihai rapor/demo planlandı |

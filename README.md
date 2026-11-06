@@ -34,6 +34,24 @@ Zaman kalırsa reranking, örnek logların daha ayrıntılı analizi, gelişmiş
 | 7 | Embedding üretme ve benzerlik aramasını geliştirme | [Anlamsal arama modülü](docs/07_anlamsal_arama.md) ve [demo çıktıları](evidence/demo_summary.json) | Tamamlandı |
 | 8 | Aday tekniklerden temel yanıt akışını oluşturma | [İlk uçtan uca RAG demosu](docs/08_temel_rag.md) ve [gerçek çıktı](evidence/week08_rag_demo_tr.json) | Tamamlandı |
 
+### Erken demo arayüzü
+
+Test ve gösterim için 11. haftadaki basit arayüzün ilk sürümü öne alınmıştır.
+Mevcut anlamsal arama ve temel RAG akışı Streamlit üzerinden kullanılabilir.
+Bu ek çalışma, 11. haftanın bütünüyle tamamlandığı anlamına gelmez;
+BM25 ve hibrit arama henüz eklenmemiştir.
+
+Hazır indeks ve model önbelleği bulunan ortamda repo kökünden:
+
+```sh
+python -m pip install -r requirements.txt
+python -m streamlit run streamlit_app.py --server.address 127.0.0.1 --server.port 8503
+```
+
+RAG seçeneği için yerel Ollama servisinin ve `qwen3:8b` modelinin hazır olması gerekir.
+İndeks hazırlama adımları [8. hafta belgesindedir](docs/08_temel_rag.md).
+Ekran aday teknikleri, kaynak metinlerini, RAG açıklamasını ve JSON indirme seçeneğini gösterir.
+
 ## Sonraki görevler
 
 | Hafta | Planlanan çalışma |
