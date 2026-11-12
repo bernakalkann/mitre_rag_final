@@ -70,6 +70,7 @@ def rank(query_vector, vectors, chunks, records, top_k=5):
                        "name": record["name"], "score": float(scores[i]),
                        "source_url": record["source_url"],
                        "parent_attack_id": record["parent_attack_id"],
+                       "tactics": record.get("tactics", []),
                        "evidence_excerpt": chunk["text"]})
         if len(result) == top_k:
             break

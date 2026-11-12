@@ -209,8 +209,13 @@ def run_rag(query, index_dir="data/index", top_k=3, offline=False, client=None):
     raw, generation = (client or LocalOllama()).generate(query, sources)
     checked = validate_answer(raw, sources)
     manifest = retrieval["index_manifest"]
+    retrieved_sources = [
+        {**source, "tactics": hit.get("tactics", []),
+         "parent_attack_id": hit.get("parent_attack_id")}
+        for source, hit in zip(sources, retrieval["results"])
+    ]
     return {"query": query, "status": "matched" if checked["matches"] else "insufficient_context",
-            **checked, "retrieved_sources": sources, "generation": generation,
+            **checked, "retrieved_sources": retrieved_sources, "generation": generation,
             "retrieval": {"method": "semantic", "top_k": top_k,
                           "embedding_model": manifest["model_id"],
                           "embedding_revision": manifest["model_revision"],

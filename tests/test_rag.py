@@ -180,7 +180,8 @@ class LocalClientTests(unittest.TestCase):
 class PipelineTests(unittest.TestCase):
     def test_retrieval_sources_are_used_in_generation(self):
         hit = {"attack_id": "T1059.001", "name": "PowerShell", "score": 0.7,
-               "source_url": SOURCES[0]["source_url"], "evidence_excerpt": SOURCES[0]["excerpt"]}
+               "source_url": SOURCES[0]["source_url"], "evidence_excerpt": SOURCES[0]["excerpt"],
+               "tactics": ["execution"], "parent_attack_id": "T1059"}
         retrieval = {"results": [hit], "index_manifest": {
             "model_id": "embedding-test", "model_revision": "revision-test", "source_records_sha256": "hash-test"}}
         client = Mock()
@@ -189,6 +190,8 @@ class PipelineTests(unittest.TestCase):
             result = run_rag("incident", client=client)
         client.generate.assert_called_once_with("incident", build_sources([hit]))
         self.assertEqual(result["status"], "matched")
+        self.assertEqual(result["retrieved_sources"][0]["tactics"], ["execution"])
+        self.assertEqual(result["retrieved_sources"][0]["parent_attack_id"], "T1059")
         self.assertFalse(result["validation"]["semantic_correctness_guaranteed"])
 
     def test_bad_input_does_not_call_model(self):
