@@ -1,6 +1,7 @@
 """Streamlit presentation for the existing semantic search and RAG pipeline."""
 import json
 import os
+import sys
 from html import escape
 from pathlib import Path
 from time import monotonic
@@ -147,6 +148,12 @@ def render_results(saved):
 
 
 def main():
+    if sys.platform == "darwin":
+        import pyarrow as pa
+
+        # Arrow's mimalloc backend can crash when Streamlit serializes result tables.
+        pa.set_memory_pool(pa.system_memory_pool())
+
     st.set_page_config(page_title="MITRE-RAG | Olay Analizi", page_icon="🛡️", layout="wide")
     st.markdown(STYLES + HERO, unsafe_allow_html=True)
 
