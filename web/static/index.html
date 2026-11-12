@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MITRE-RAG · Olay analizi</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <a id="skip-results" class="skip" href="#sonuclar" hidden>Sonuçlara atla</a>
+  <header class="topbar">
+    <div class="page topbar-inner">
+      <p class="wordmark"><strong>MITRE-RAG</strong><span>Olay analizi</span></p>
+      <p id="health" class="health">Kaynaklar kontrol ediliyor…</p>
+    </div>
+  </header>
+
+  <main class="page">
+    <section id="composer" class="composer" aria-labelledby="composer-title">
+      <h1 id="composer-title">Olayı tanımlayın</h1>
+      <p id="composer-help" class="muted">Gözlediğiniz davranışı kendi cümlelerinizle yazın.</p>
+      <form id="analysis-form" novalidate>
+        <div class="input-area">
+          <label for="incident" class="sr-only">Olay açıklaması</label>
+          <textarea id="incident" name="text" rows="8" aria-describedby="composer-help" placeholder="Örn. Bir uç nokta alarmında beklenmedik PowerShell etkinliği görüldü…" autofocus></textarea>
+          <p id="input-error" class="field-error" hidden>Analiz için bir olay açıklaması yazın.</p>
+          <div class="input-footer">
+            <select id="examples" aria-label="Örnek olay yükle"><option value="">Örnek olay yükle</option></select>
+            <output id="char-count" for="incident">0 karakter</output>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button id="submit" type="submit" class="primary"><span id="spinner" class="spinner" hidden aria-hidden="true"></span><span id="submit-label">Analiz et</span></button>
+          <kbd class="shortcut" aria-hidden="true">Ctrl/⌘ + Enter</kbd>
+        </div>
+        <div class="settings">
+          <span id="settings-summary">Mod: Anlamsal arama · ATT&amp;CK 3 / NIST 3 aday</span>
+          <button type="button" id="settings-toggle" class="text-button" aria-expanded="false" aria-controls="settings-panel">Değiştir</button>
+        </div>
+        <div id="settings-panel" class="settings-panel" hidden>
+          <fieldset>
+            <legend>Analiz modu</legend>
+            <label class="mode"><input type="radio" name="mode" value="semantic" checked><span>Anlamsal arama<small>ATT&amp;CK ve NIST adaylarını getirir.</small></span></label>
+            <label class="mode"><input type="radio" name="mode" value="rag"><span>Kaynaklı açıklama<small>ATT&amp;CK kaynaklarına dayalı yerel model yorumu ekler.</small></span></label>
+          </fieldset>
+          <label class="candidate-input" for="limit">ATT&amp;CK aday sayısı <input type="number" id="limit" name="k" min="1" max="10" value="3" required></label>
+          <p id="model-warning" class="muted" hidden>Yerel modele ulaşılamıyor. Adaylar yine aranır.</p>
+        </div>
+        <div id="analysis-status" class="status" role="status" aria-live="polite"></div>
+        <div id="analysis-error" class="error-panel" role="alert" hidden></div>
+      </form>
+      <div class="source-preview" id="source-preview">
+        <p class="source-attack"><strong>MITRE ATT&amp;CK</strong> · Olayla ilişkili olabilecek teknikler</p>
+        <p class="source-nist"><strong>NIST CSF 2.0</strong> · İnceleyebileceğiniz savunma başlıkları</p>
+      </div>
+    </section>
+
+    <section id="sonuclar" class="results" aria-labelledby="result-title" hidden>
+      <div class="results-top">
+        <h2 id="result-title" tabindex="-1">Sonuçlar</h2>
+        <p id="result-meta" class="muted"></p>
+        <a id="download" class="secondary" download="mitre_rag_analiz.json">JSON indir</a>
+      </div>
+      <div id="previous" class="previous" hidden></div>
+      <div id="result-content">
+        <div class="incident-record">
+          <div><strong>Analiz edilen olay</strong><span id="changed" class="muted" hidden>Metin değişti · sonuçlar önceki metne ait</span></div>
+          <blockquote id="analyzed-text" class="clamped"></blockquote>
+          <button id="expand-incident" type="button" class="text-button" aria-expanded="false" aria-controls="analyzed-text" hidden>Tamamını göster</button>
+        </div>
+        <div class="workspace-grid">
+          <div id="result-lists">
+            <section id="model-block" class="model-block" aria-labelledby="model-title" hidden></section>
+            <div id="source-groups"></div>
+          </div>
+          <aside id="kanit-paneli" class="evidence" aria-label="Seçili adayın kanıtı"></aside>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

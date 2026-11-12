@@ -1,6 +1,7 @@
 """Token-aware Sentence Transformer indexing and cosine retrieval."""
 import importlib.metadata
 import json
+from functools import lru_cache
 from pathlib import Path
 from time import perf_counter
 
@@ -78,8 +79,23 @@ def rank(query_vector, vectors, chunks, records, top_k=5):
 
 
 def load_model(model_id, revision=None, offline=False):
+    if offline and revision:
+        return _offline_model(model_id, revision)
     from sentence_transformers import SentenceTransformer
     return SentenceTransformer(model_id, revision=revision, device="cpu", local_files_only=offline)
+
+
+@lru_cache(maxsize=2)
+def _offline_model(model_id, revision):
+    from sentence_transformers import SentenceTransformer
+    return SentenceTransformer(model_id, revision=revision, device="cpu", local_files_only=True)
+
+
+@lru_cache(maxsize=2)
+def _read_index(index_dir, artifact_versions):
+    return (np.load(index_dir / "vectors.npy", allow_pickle=False),
+            json.loads((index_dir / "chunks.json").read_text()),
+            json.loads((index_dir / "records.json").read_text()))
 
 
 def build_index(records_path, index_dir, model_id=DEFAULT_MODEL, revision=None, offline=False):
@@ -118,7 +134,7 @@ def build_index(records_path, index_dir, model_id=DEFAULT_MODEL, revision=None, 
 def search(index_dir, query, top_k=5, offline=False):
     if not query.strip():
         raise ValueError("Query cannot be empty")
-    index_dir = Path(index_dir)
+    index_dir = Path(index_dir).resolve()
     manifest = json.loads((index_dir / "manifest.json").read_text())
     for name, expected in manifest["artifacts"].items():
         if sha256(index_dir / name) != expected:
@@ -128,9 +144,8 @@ def search(index_dir, query, top_k=5, offline=False):
         raise ValueError("Query exceeds model token limit; shorten the incident description")
     start = perf_counter()
     vector = model.encode([query], convert_to_numpy=True, normalize_embeddings=True)[0]
-    hits = rank(vector, np.load(index_dir / "vectors.npy", allow_pickle=False),
-                json.loads((index_dir / "chunks.json").read_text()),
-                json.loads((index_dir / "records.json").read_text()), top_k)
+    vectors, chunks, records = _read_index(index_dir, tuple(sorted(manifest["artifacts"].items())))
+    hits = rank(vector, vectors, chunks, records, top_k)
     return {"query": query, "results": hits, "query_and_ranking_seconds": perf_counter() - start,
             "timing_excludes_model_load": True, "index_manifest": manifest,
             "notice": "Cosine similarity is not a probability or a confirmed attack classification."}

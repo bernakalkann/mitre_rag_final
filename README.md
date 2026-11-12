@@ -37,20 +37,39 @@ Zaman kalırsa reranking, örnek logların daha ayrıntılı analizi, gelişmiş
 ### Erken demo arayüzü
 
 Test ve gösterim için 11. haftadaki basit arayüzün ilk sürümü öne alınmıştır.
-Mevcut anlamsal arama ve temel RAG akışı Streamlit üzerinden kullanılabilir.
-Bu ek çalışma, 11. haftanın bütünüyle tamamlandığı anlamına gelmez;
-BM25 ve hibrit arama henüz eklenmemiştir.
+Anlamsal arama ve temel RAG akışı **Kanıt masası** web arayüzü ve Streamlit
+üzerinden kullanılabilir. İki arayüz aynı Python analiz servisini çağırır.
 
 Hazır indeks ve model önbelleği bulunan ortamda repo kökünden:
 
 ```sh
 python -m pip install -r requirements.txt
-python -m streamlit run streamlit_app.py --server.address 127.0.0.1 --server.port 8503
+python -m uvicorn web.server:app --host 127.0.0.1 --port 8503
 ```
 
-RAG seçeneği için yerel Ollama servisinin ve `qwen3:8b` modelinin hazır olması gerekir.
+Kanıt Masası [8503](http://127.0.0.1:8503/) adresinde açılır. Streamlit ekranını
+da kullanmak isterseniz onu ayrı bir terminalde varsayılan Streamlit portuyla başlatın:
+
+```sh
+python -m streamlit run streamlit_app.py --server.address 127.0.0.1
+```
+
+Kaynaklı açıklama için yerel Ollama ve `qwen3:8b` gerekir. Yerel model hata
+verdiğinde her iki kaynağın adayları bağımsız olarak gösterilebilir.
 İndeks hazırlama adımları [8. hafta belgesindedir](docs/08_temel_rag.md).
-Ekran aday teknikleri, kaynak metinlerini, RAG açıklamasını ve JSON indirme seçeneğini gösterir.
+Analiz tamamlandığında ekran sonuçlara kayar. Geniş ekranda kanıt paneli
+adayların yanında, dar ekranda seçilen satırın altında açılır. JSON çıktısı
+iki arayüzde de aynı analiz verisini içerir. ATT&CK için aday sayısı 1–10
+arasında ayarlanır. NIST için mevcut üç aday sınırı kullanılır.
+
+Demo, aynı olay metnini [NIST CSF 2.0 Ek A](https://doi.org/10.6028/NIST.CSWP.29)
+içindeki 106 alt kategoride de arar. NIST için kategori adı ve İngilizce sonuç
+açıklaması, ATT&CK indeksinde belirtilen çok dilli MiniLM ile vektörlenir. NIST
+indeksi ilk aramada CPU üzerinde hazırlanır ve uygulama sürecinin belleğinde
+tutulur. İki kaynakta sıralama kosinüs benzerliğiyle ayrı yapılır. Yerel LLM
+ATT&CK açıklaması üretir ve NIST adayları kendi kaynak metniyle
+gösterilir. JSON çıktısı NIST sürümünü, yerel katalog SHA-256 değerini, model
+revizyonunu ve benzerlik skorlarını içerir. 9. hafta BM25 çalışması beklemededir.
 
 ## Sonraki görevler
 

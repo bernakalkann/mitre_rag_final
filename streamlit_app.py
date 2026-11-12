@@ -1,56 +1,53 @@
 """Streamlit presentation for the existing semantic search and RAG pipeline."""
 import json
-import os
 import sys
+from collections import Counter
 from html import escape
 from pathlib import Path
-from time import monotonic
+from time import monotonic_ns
 
-import altair as alt
 import streamlit as st
+import streamlit.components.v1 as components
 
-ROOT = Path(__file__).resolve().parent
-INDEX_DIR = ROOT / "data/index"
-os.environ.setdefault("HF_HOME", str(ROOT / "data/model_cache"))
+from mitre_final.rag import DEFAULT_LLM, NOTICE
+from mitre_final.search import DEFAULT_MODEL
+from mitre_final.service import EXAMPLES, RAG, ROOT, SEMANTIC, analyze, read_attack_manifest
 
-from mitre_final.rag import DEFAULT_LLM, NOTICE, RagError, run_rag
-from mitre_final.search import DEFAULT_MODEL, search
 
-SEMANTIC = "Anlamsal arama"
-RAG = "Kaynaklı açıklama (RAG)"
-EXAMPLES = {
-    "PowerShell": "Güvenlik ekibi, bir Windows uç noktasında PowerShell üzerinden şüpheli bir betik çalıştırıldığını gözlemledi.",
-    "Zamanlanmış görev": "An endpoint alert reported a new Windows scheduled task associated with a suspicious executable at user logon.",
-    "Kimlik bilgilerine erişim": "Endpoint telemetry recorded an unexpected process accessing LSASS memory.",
-    "Yetersiz bağlam": "Kullanıcı bilgisayarında hesap makinesini açtı.",
-}
-
-STYLES = """
-<style>
-.block-container {max-width: 78rem; padding-top: 2.5rem;}
-.mitre-hero {
-    background: linear-gradient(115deg, #0a172b, #153957);
-    border: 1px solid #315773;
-    border-radius: 1.25rem;
-    padding: clamp(1.3rem, 4vw, 3rem);
-    margin-bottom: 1.5rem;
-    color: #f3f8ff;
-}
-.mitre-hero h1 {color: inherit; padding: 0; font-size: clamp(2rem, 5vw, 3.5rem);}
-.mitre-hero p {color: #d7e7f4; margin: 0.5rem 0 0; font-size: 1.05rem;}
-.mitre-hero .mitre-label {color: #8ce4db; font-size: .8rem; font-weight: 700; letter-spacing: .1em;}
-.mitre-badges {display: flex; flex-wrap: wrap; gap: .45rem; margin: .25rem 0 .75rem;}
-.mitre-badge {background: #d7f5f1; color: #103f43; border-radius: 1rem; padding: .2rem .65rem; font-size: .82rem;}
-</style>
-"""
-
-HERO = """
-<header class="mitre-hero">
-  <div class="mitre-label">MITRE ATT&amp;CK® ENTERPRISE</div>
-  <h1>MITRE-RAG</h1>
-  <p>Güvenlik olaylarını ATT&amp;CK teknikleriyle eşleştirin ve kaynakları inceleyin.</p>
+def render_header():
+    styles = (ROOT / "assets/workspace.css").read_text(encoding="utf-8")
+    st.markdown(f"<style>{styles}</style>" + """
+<header class="work-header">
+  <strong class="work-brand">MITRE-RAG</strong>
+  <span>Güvenlik olayı inceleme</span>
 </header>
-"""
+""", unsafe_allow_html=True)
+
+
+def render_result_heading(title, detail):
+    st.markdown(
+        f'<div class="result-heading"><h2>{escape(title)}</h2>'
+        f'<p>{escape(detail)}</p></div>', unsafe_allow_html=True,
+    )
+
+
+def focus_section(selector, narrow_only=False):
+    # A fresh iframe runs only in response to an analysis or an explicit selection.
+    components.html(f"<!-- {monotonic_ns()} -->" + f"""
+<script>
+const page = window.parent;
+window.frameElement?.setAttribute("tabindex", "-1");
+page.requestAnimationFrame(() => {{
+    if ({str(narrow_only).lower()} && !page.matchMedia("(max-width: 740px)").matches) return;
+    const heading = page.document.querySelector({json.dumps(selector)});
+    if (!heading) return;
+    heading.setAttribute("tabindex", "-1");
+    heading.focus({{preventScroll: true}});
+    const reduced = page.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    heading.scrollIntoView({{block: "start", behavior: reduced ? "instant" : "smooth"}});
+}});
+</script>
+""", height=0, width=0)
 
 
 def load_example():
@@ -61,90 +58,160 @@ def similarity(hit):
     return hit["score"] if "score" in hit else hit["retrieval_score"]
 
 
+def tactic_label(tactic):
+    return tactic.replace("-", " ").title()
+
+
 def render_chart(hits):
-    rows = [{"technique": hit["attack_id"], "name": hit["name"], "score": similarity(hit)}
-            for hit in hits]
-    chart = (
-        alt.Chart(alt.Data(values=rows))
-        .mark_bar(color="#2d8d88")
-        .encode(
-            x=alt.X("score:Q", title="Kosinüs benzerliği",
-                    scale=alt.Scale(domain=[-1, 1]), axis=alt.Axis(format=".1f")),
-            y=alt.Y("technique:N", title=None, sort=[row["technique"] for row in rows]),
-            tooltip=[alt.Tooltip("technique:N", title="ATT&CK"),
-                     alt.Tooltip("name:N", title="Teknik"),
-                     alt.Tooltip("score:Q", title="Benzerlik", format=".4f")],
+    rows = []
+    for hit in hits:
+        score = similarity(hit)
+        position = 50 + 50 * min(0, max(-1, score))
+        width = 50 * min(1, abs(score))
+        rows.append(
+            f'<div class="score-row"><code>{escape(hit["attack_id"])}</code>'
+            f'<div class="score-track" aria-hidden="true">'
+            f'<span style="left:{position:.3f}%;width:{width:.3f}%"></span></div>'
+            f'<span>{score:.4f}</span></div>'
         )
-        .properties(height=max(100, 32 * len(rows)))
-    )
-    st.altair_chart(chart, use_container_width=True)
-    st.caption("Kosinüs benzerliği −1 ile +1 arasındadır. Adaylar en yüksek skordan başlayarak sıralanır.")
+    st.markdown('<div class="score-chart" role="group" aria-label="ATT&amp;CK benzerlik grafiği">'
+                + "".join(rows) + "</div>", unsafe_allow_html=True)
+    st.caption("Kosinüs benzerliği −1 ile +1 arasındadır. Çubuklar ortadaki sıfır çizgisinden başlar.")
 
 
-def render_hit(hit, match):
-    with st.container(border=True):
-        heading, score = st.columns([4, 1])
-        with heading:
-            st.subheader(f"{hit['attack_id']} · {hit['name']}")
-        with score:
-            st.metric("Benzerlik", f"{similarity(hit):.4f}")
-        if hit.get("tactics"):
-            badges = "".join(
-                f'<span class="mitre-badge">{escape(tactic.replace("-", " ").title())}</span>'
-                for tactic in hit["tactics"]
-            )
-            st.markdown(f'<div class="mitre-badges">{badges}</div>', unsafe_allow_html=True)
+def select_candidate(candidate):
+    st.session_state["selected_candidate"] = candidate
+    st.session_state["focus_evidence"] = True
+
+
+def render_candidate_group(name, purpose, kind, candidates, selected, error):
+    st.markdown(f'<div class="candidate-group"><div><h4>{escape(name)}</h4>'
+                f'<small>{escape(purpose)}</small></div>'
+                f'<span>{len(candidates)} aday</span></div>', unsafe_allow_html=True)
+    if error:
+        st.warning(error)
+    elif not candidates:
+        st.caption("Aday bulunamadı.")
+
+    for rank, (identifier, title, score, _) in enumerate(candidates, start=1):
+        candidate = (kind, identifier)
+        st.button(f"`{rank:02d}`  {title} · `{identifier}` · `{score:.4f}`",
+                  key=f"candidate_{kind}_{identifier}",
+                  type="primary" if candidate == selected else "secondary",
+                  use_container_width=True, on_click=select_candidate, args=(candidate,))
+
+
+def render_evidence(selected, sources, matches, reference):
+    if selected is None:
+        st.caption("Kanıt gösterilebilecek bir aday bulunamadı.")
+        return
+
+    kind, identifier = selected
+    _, title, score, hit = sources[selected]
+    source_name = "MITRE ATT&CK" if kind == "attack" else "NIST CSF 2.0"
+    st.markdown(f'<div class="evidence-meta" role="status">{source_name} · <code>{escape(identifier)}</code>'
+                f' · Benzerlik {score:.4f}</div>', unsafe_allow_html=True)
+    st.subheader(title)
+    if kind == "attack":
+        tactics = ", ".join(map(tactic_label, hit.get("tactics", [])))
+        if tactics:
+            st.caption(f"Taktik · {tactics}")
         if hit.get("parent_attack_id"):
             st.caption(f"Üst teknik · {hit['parent_attack_id']}")
+        match = matches.get(identifier)
         if match:
             st.markdown("**Neden bu teknik?**")
             st.write(match["explanation"])
-            st.caption("ATT&CK kaynak alıntısı")
-            st.text(match["evidence_quote"])
-        with st.expander("Aramada bulunan kaynak metni"):
-            st.text(hit.get("evidence_excerpt", hit.get("excerpt", "")))
-        st.link_button("ATT&CK teknik sayfasını aç", hit["source_url"])
+            st.markdown("#### Modelin kullandığı ATT&CK alıntısı")
+            st.markdown(f'<blockquote class="evidence-quote">{escape(match["evidence_quote"])}</blockquote>',
+                        unsafe_allow_html=True)
+        description = hit.get("evidence_excerpt", hit.get("excerpt", ""))
+        url = hit["source_url"]
+        link_label = "Resmî ATT&CK kaydını aç"
+    else:
+        st.caption(f"İşlev · {hit['function']}")
+        description = hit["description"]
+        url = reference["source_url"]
+        link_label = "NIST yayını · Ek A"
+
+    st.markdown("#### Resmî kaynak metni")
+    if description:
+        st.markdown(f'<blockquote class="evidence-quote">{escape(description)}</blockquote>',
+                    unsafe_allow_html=True)
+    else:
+        st.caption("Bu aday için yerel indekste kaynak metni bulunamadı.")
+    st.link_button(link_label, url)
+
+
+def render_attack_statistics(hits):
+    with st.expander("Skor grafiği ve taktik dağılımı"):
+        render_chart(hits)
+        counts = Counter(tactic for hit in hits for tactic in set(hit.get("tactics", [])))
+        if counts:
+            rows = "".join(
+                f"<tr><th scope='row'>{escape(tactic_label(tactic))}</th><td>{count}</td></tr>"
+                for tactic, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+            )
+            st.markdown("<table class='tactic-table'><thead><tr><th scope='col'>Taktik</th>"
+                        "<th scope='col'>Aday sayısı</th></tr></thead><tbody>"
+                        + rows + "</tbody></table>", unsafe_allow_html=True)
+            st.caption("Bir teknik birden fazla taktikle ilişkili olabilir.")
+        else:
+            st.caption("Bu adaylar için taktik bilgisi bulunamadı.")
 
 
 def render_results(saved):
     result = saved["result"]
-    is_rag = "matches" in result
-    hits = result["retrieved_sources"] if is_rag else result["results"]
+    reference = saved["nist"]
+    errors = saved.get("errors", {})
+    hits = result.get("retrieved_sources", result.get("results", []))
     matches = {match["attack_id"]: match for match in result.get("matches", [])}
+    attack = [(hit["attack_id"], hit["name"], similarity(hit), hit) for hit in hits]
+    nist = [(hit["id"], hit["category"], hit["score"], hit)
+            for hit in reference["results"]] if reference is not None else []
+    sources = {("attack", row[0]): row for row in attack}
+    sources.update({("nist", row[0]): row for row in nist})
+    selected = st.session_state.get("selected_candidate")
+    if selected not in sources:
+        selected = next(iter(sources), None)
 
-    st.header("Analiz sonucu")
-    count, best, elapsed = st.columns(3)
-    count.metric("Bulunan aday", len(hits))
-    best.metric("En yüksek benzerlik", f"{max(map(similarity, hits)):.4f}" if hits else "—")
-    elapsed.metric("Analiz süresi", f"{saved['elapsed']:.1f} sn")
+    with st.container(key="analysis_results"):
+        state = "Kısmi analiz sonuçları" if errors else "Analiz sonuçları"
+        render_result_heading(state, f"{saved['mode']} · {saved['elapsed']:.1f} sn")
+        with st.expander("Analiz edilen olay"):
+            st.text(result["query"])
+        explanation = saved.get("explanation")
+        if explanation and explanation["status"] == "error":
+            st.warning(f"Model yorumu üretilemedi: {explanation['error']}")
+        if "summary" in result:
+            with st.expander("ATT&CK kaynaklarına dayalı model yorumu"):
+                st.write(result["summary"])
+                if not matches:
+                    st.warning("Kaynaklarla desteklenen bir eşleşme üretilemedi. İnceleme için ek bağlam gerekiyor.")
+                for item in result["additional_data_needed"]:
+                    st.write(f"• {item}")
 
-    with st.expander("Analiz edilen olay ve yöntem"):
-        st.caption(saved["mode"])
-        st.text(result["query"])
-    if is_rag:
-        st.subheader("Kaynaklı değerlendirme")
-        st.write(result["summary"])
-        if not matches:
-            st.warning("Kaynaklarla desteklenen bir eşleşme üretilemedi. İnceleme için ek bağlam gerekiyor.")
-        if result["additional_data_needed"]:
-            st.markdown("**İnceleme için gereken ek bilgiler**")
-            for item in result["additional_data_needed"]:
-                st.write(f"• {item}")
+        with st.container(key="inspection_grid"):
+            candidates, evidence = st.columns([5, 6])
+            with candidates, st.container(border=True, key="candidate_list"):
+                st.subheader("Adaylar")
+                st.caption("Bir aday seçin. Benzerlik skorları her kaynak içinde sıralanır.")
+                render_candidate_group("MITRE ATT&CK", "Olayla ilişkili teknikler",
+                                       "attack", attack, selected, errors.get("attack"))
+                render_candidate_group("NIST CSF 2.0", "İncelenecek savunma başlıkları",
+                                       "nist", nist, selected, errors.get("nist"))
+            with evidence, st.container(border=True, key="evidence_panel"):
+                st.markdown('<h3 class="evidence-heading">Kaynak ve kanıt</h3>', unsafe_allow_html=True)
+                render_evidence(selected, sources, matches, reference)
 
-    st.subheader("Aday teknikler")
-    if hits:
-        if not is_rag:
-            st.caption("Olayla ilgili kaynaklı açıklama için RAG modunda yeniden analiz edebilirsiniz.")
-        render_chart(hits)
-        for hit in hits:
-            render_hit(hit, matches.get(hit["attack_id"]))
-    else:
-        st.info("İndekste aday teknik bulunamadı.")
-
-    st.download_button("Sonucu JSON olarak indir", json.dumps(result, ensure_ascii=False, indent=2),
-                       file_name="mitre_rag_analiz.json", mime="application/json")
-    with st.expander("Ayrıntılı JSON çıktısı"):
-        st.json(result)
+        st.caption(NOTICE)
+        if hits:
+            render_attack_statistics(hits)
+        with st.expander("JSON çıktısı"):
+            exported = {**result, "nist_csf": reference}
+            st.download_button("JSON olarak indir", json.dumps(exported, ensure_ascii=False, indent=2),
+                               file_name="mitre_rag_analiz.json", mime="application/json")
+            st.json(exported)
 
 
 def main():
@@ -154,67 +221,69 @@ def main():
         # Arrow's mimalloc backend can crash when Streamlit serializes result tables.
         pa.set_memory_pool(pa.system_memory_pool())
 
-    st.set_page_config(page_title="MITRE-RAG | Olay Analizi", page_icon="🛡️", layout="wide")
-    st.markdown(STYLES + HERO, unsafe_allow_html=True)
+    st.set_page_config(page_title="MITRE-RAG | Olay Analizi", page_icon="🛡️",
+                       layout="wide", initial_sidebar_state="collapsed")
+    manifest = read_attack_manifest()
+    render_header()
 
     with st.sidebar:
-        st.header("Analiz ayarları")
-        mode = st.radio("Çalışma biçimi", [SEMANTIC, RAG],
-                        help="RAG, bulunan ATT&CK kaynaklarını kullanarak yerel modelle açıklama üretir.")
-        top_k = st.slider("Aday teknik sayısı", 1, 10, 3)
-        st.divider()
         st.subheader("Sistem bilgisi")
-        st.markdown("**Veri kaynağı**  \nMITRE ATT&CK Enterprise · STIX")
-        st.markdown("**Arama**  \nAnlamsal arama · Kosinüs benzerliği")
-        st.markdown(f"**Embedding modeli**  \n`{DEFAULT_MODEL.split('/')[-1]}`")
-        st.markdown(f"**Yerel dil modeli**  \n`{DEFAULT_LLM}` · Ollama")
+        st.caption(f"ATT&CK teknik sayısı · {manifest.get('record_count', '—')}")
+        st.caption(f"Embedding · {DEFAULT_MODEL.split('/')[-1]}")
+        st.caption(f"Yerel model · {DEFAULT_LLM} / Ollama")
 
-        with st.expander("Analiz nasıl çalışır?"):
-            st.write("Sistem, olay metnine en yakın ATT&CK kaynaklarını sıralar. "
-                     "RAG modunda yerel model bu kaynaklara dayanarak açıklama üretir. "
-                     "Uygulama kaynak kimliklerini ve alıntıları kontrol eder.")
-
-    with st.container(border=True):
-        st.header("Güvenlik olayı")
-        st.caption("Gözlenen davranışı, ilgili süreci ve varsa alarm veya günlük ayrıntılarını yazın.")
-        example, action = st.columns([3, 2], vertical_alignment="bottom")
-        with example:
-            st.selectbox("Örnek olay", list(EXAMPLES), key="example")
-        with action:
-            st.button("Örneği girdiye aktar", on_click=load_example, use_container_width=True)
+    with st.container(border=True, key="analysis_input"):
+        st.title("Güvenlik olayı analizi")
         with st.form("analysis", border=False):
-            query = st.text_area("Olay açıklaması", key="incident", height=160,
-                                 placeholder="Örn. Uç nokta alarmında bilinmeyen bir süreç gözlendi…")
-            submitted = st.form_submit_button("Analiz et", type="primary", use_container_width=True)
-    st.caption(NOTICE)
+            query = st.text_area("Olay açıklaması", key="incident", height=112,
+                                 placeholder="Ne gözlendi? İlgili süreci, cihazı veya alarmı yazın.")
+            controls, submit = st.columns([5, 2], vertical_alignment="top")
+            with controls, st.expander("Analiz ayarları"):
+                mode = st.radio("Çalışma biçimi", [SEMANTIC, RAG],
+                                help="RAG, ATT&CK kaynaklarından yerel modelle açıklama üretir.")
+                top_k = st.slider("ATT&CK aday sayısı", 1, 10, 3)
+            with submit:
+                submitted = st.form_submit_button("Analiz et", type="primary", use_container_width=True)
+        feedback = st.empty()
+        with st.expander("Örnek olaylar"):
+            example, action = st.columns([3, 1], vertical_alignment="bottom")
+            with example:
+                st.selectbox("Örnek olay", list(EXAMPLES), key="example")
+            with action:
+                st.button("Örneği girdiye aktar", on_click=load_example)
 
     if submitted:
         st.session_state.pop("analysis_result", None)
+        st.session_state.pop("selected_candidate", None)
         if not query.strip():
-            st.warning("Önce bir olay açıklaması girin.")
+            feedback.warning("Önce bir olay açıklaması girin.")
             return
-        started = monotonic()
-        message = ("ATT&CK kaynakları taranıyor…" if mode == SEMANTIC
-                   else "ATT&CK kaynakları taranıyor ve yerel model açıklama üretiyor…")
-        try:
-            with st.spinner(message):
-                result = (search(INDEX_DIR, query, top_k, offline=True) if mode == SEMANTIC
-                          else run_rag(query, INDEX_DIR, top_k, offline=True))
-        except (RagError, ValueError, OSError) as exc:
-            st.error(f"Analiz tamamlanamadı: {exc}")
-            st.caption("İndeks ve embedding önbelleğini kontrol edin. RAG için Ollama ve qwen3:8b gerekir.")
+
+        message = ("ATT&CK ve NIST kaynakları taranıyor…" if mode == SEMANTIC
+                   else "Kaynaklar taranıyor ve yerel model ATT&CK açıklaması üretiyor…")
+        with feedback.container(), st.spinner(message):
+            response = analyze(query, "rag" if mode == RAG else "semantic", top_k)
+
+        errors = {kind: response[kind]["error"] for kind in ("attack", "nist")
+                  if response[kind]["status"] == "error"}
+        export = response["export"]
+        if export is None:
+            feedback.error(" ".join(errors.values()))
             return
+
         st.session_state["analysis_result"] = {
-            "mode": mode, "result": result, "elapsed": monotonic() - started,
+            "mode": mode, "result": {key: value for key, value in export.items() if key != "nist_csf"},
+            "nist": export["nist_csf"], "errors": errors, "elapsed": response["duration_ms"] / 1000,
+            "explanation": response["explanation"],
         }
 
     saved = st.session_state.get("analysis_result")
     if saved:
         render_results(saved)
-    else:
-        with st.container(border=True):
-            st.subheader("İlk analizinizi başlatın")
-            st.write("Bir olay yazın veya örnek olay yükleyin. Aday teknikler ve kaynakları burada görünecek.")
+        if submitted:
+            focus_section(".result-heading h2")
+        elif st.session_state.pop("focus_evidence", False):
+            focus_section(".evidence-heading", narrow_only=True)
 
 
 if __name__ == "__main__":
