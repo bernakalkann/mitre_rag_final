@@ -21,7 +21,7 @@ class AnalysisServiceTests(unittest.TestCase):
         self.assertEqual(response["attack"]["status"], "ok")
         self.assertEqual(response["nist"]["status"], "ok")
         self.assertEqual(self.attack.call_args.args[2], 5)
-        self.assertEqual(self.nist.call_args.kwargs["top_k"], 3)
+        self.assertEqual(self.nist.call_args.kwargs["top_k"], 5)
 
     def test_nist_error_keeps_attack_and_existing_export_fields(self):
         self.nist.side_effect = OSError("NIST cataloğu okunamadı")

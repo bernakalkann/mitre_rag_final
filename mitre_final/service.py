@@ -12,7 +12,6 @@ INDEX_DIR = ROOT / "data/index"
 SEMANTIC = "Anlamsal arama"
 RAG = "Kaynaklı açıklama (RAG)"
 DEFAULT_K = 3
-NIST_K = 3
 EXAMPLES = {
     "PowerShell": "Güvenlik ekibi, bir Windows uç noktasında PowerShell üzerinden şüpheli bir betik çalıştırıldığını gözlemledi.",
     "Zamanlanmış görev": "An endpoint alert reported a new Windows scheduled task associated with a suspicious executable at user logon.",
@@ -43,7 +42,7 @@ def analyze(text, mode="semantic", k=DEFAULT_K, *, index_dir=INDEX_DIR):
     attack_result, nist_result, explanation, errors = None, None, None, {}
     with _ANALYSIS_LOCK:
         try:
-            nist_result = nist.search_nist(text, top_k=NIST_K,
+            nist_result = nist.search_nist(text, top_k=k,
                                            model_id=manifest.get("model_id") or search.DEFAULT_MODEL,
                                            revision=manifest.get("model_revision") or nist.DEFAULT_REVISION)
         except SEARCH_ERRORS as exc:

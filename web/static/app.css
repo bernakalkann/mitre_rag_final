@@ -45,20 +45,24 @@ select,input[type="number"] { max-width:100%; border:1px solid #b7b3aa; border-r
 .secondary { border-color:#b7b3aa; background:var(--surface); }
 .secondary:hover { background:#eeeae2; }
 .shortcut { font-size:13px; color:var(--muted); }
-.settings { flex:1 0 100%; display:flex; align-items:baseline; gap:4px 12px; flex-wrap:wrap; color:var(--muted); font-size:13px; }
 .composer:not(.compact) .input-area { display:contents; }
-.composer:not(.compact) :is(textarea,.field-error,.settings) { grid-column:1/-1; }
+.composer:not(.compact) :is(textarea,.field-error) { grid-column:1/-1; }
 .composer:not(.compact) .input-footer { grid-column:1; margin-top:0; }
-.composer:not(.compact) .form-actions { grid-column:2; }
 .text-button { padding:2px 4px; border:0; background:transparent; text-decoration:underline; text-underline-offset:3px; }
-.settings-panel,.status,.error-panel { grid-column:1/-1; }
-.settings-panel { padding:12px; background:var(--surface); border:1px solid var(--line); border-radius:6px; }
-fieldset { border:0; padding:0; margin:0 0 12px; display:flex; gap:8px; flex-wrap:wrap; }
-legend { font-weight:600; margin-bottom:8px; }
-.mode { display:flex; gap:8px; align-items:flex-start; flex:1 1 240px; border:1px solid var(--line); padding:8px; border-radius:6px; cursor:pointer; }
-.mode:has(input:checked) { border-color:var(--ink); background:var(--paper); }
-.mode small { display:block; color:var(--muted); }
-.candidate-input input { width:68px; margin-left:8px; }
+.analysis-options,.status,.error-panel { grid-column:1/-1; }
+.analysis-options { display:grid; gap:10px; padding-top:10px; border-top:1px solid var(--line); font-size:13px; }
+.analysis-options fieldset { min-width:0; border:0; padding:0; margin:0; }
+.analysis-options legend { font-weight:600; margin-bottom:6px; }
+.mode { display:flex; gap:8px; align-items:flex-start; border:1px solid var(--line); padding:8px 10px; border-radius:6px; cursor:pointer; }
+.mode + .mode { margin-top:6px; }
+.mode:has(input:checked) { border-color:var(--accent,var(--focus)); background:var(--paper); }
+.mode:has(input:disabled) { cursor:default; opacity:.68; }
+.mode input { margin:3px 0 0; accent-color:var(--accent,var(--focus)); }
+.mode small { display:block; margin-top:2px; color:var(--muted); font-size:12px; }
+.candidate-limit { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:2px 8px; align-items:center; }
+.candidate-limit label { font-weight:600; }
+.candidate-limit select { min-height:34px; min-width:54px; }
+.candidate-limit p { grid-column:1/-1; font-size:12px; }
 .status:empty { display:none; }
 .status { color:var(--muted); font-size:13px; }
 .field-error,.error-panel { color:var(--danger); }
@@ -74,8 +78,8 @@ legend { font-weight:600; margin-bottom:8px; }
 .compact h1 { font-size:22px; margin-bottom:12px; }
 .compact #composer-help { display:none; }
 .compact .input-area { grid-column:1; grid-row:1/3; }
-.compact .form-actions { grid-column:2; grid-row:1; justify-content:flex-start; align-content:start; width:252px; }
-.compact .settings { grid-column:2; grid-row:2; align-self:start; }
+.compact .form-actions { grid-column:2; grid-row:2; justify-content:flex-start; align-content:start; width:252px; }
+.compact .analysis-options { grid-column:2; grid-row:1; align-self:start; }
 .results { margin:32px 0 48px; }
 .results-top { display:flex; gap:8px 16px; align-items:center; flex-wrap:wrap; padding:12px 0; border-bottom:1px solid var(--line); }
 #result-title { scroll-margin-top:64px; }
@@ -144,9 +148,9 @@ legend { font-weight:600; margin-bottom:8px; }
   .topbar-inner { align-items:flex-start; flex-direction:column; gap:2px; padding-block:8px; }
   .health { text-align:left; }
   .composer { margin-top:32px; }
-  .compact .input-area,.compact .form-actions,.compact .settings,
+  .compact .input-area,.compact .form-actions,.compact .analysis-options,
   .composer:not(.compact) .input-footer,.composer:not(.compact) .form-actions { grid-column:1/-1; }
-  .compact :is(.input-area,.form-actions,.settings) { grid-row:auto; }
+  .compact :is(.input-area,.form-actions,.analysis-options) { grid-row:auto; }
   .compact .form-actions { width:auto; }
   .form-actions .primary { width:100%; }
   .shortcut { display:none; }

@@ -11,7 +11,7 @@ import streamlit.components.v1 as components
 
 from mitre_final.rag import DEFAULT_LLM, NOTICE
 from mitre_final.search import DEFAULT_MODEL
-from mitre_final.service import EXAMPLES, RAG, ROOT, SEMANTIC, analyze, read_attack_manifest
+from mitre_final.service import DEFAULT_K, EXAMPLES, RAG, ROOT, SEMANTIC, analyze, read_attack_manifest
 
 
 def render_header():
@@ -241,7 +241,8 @@ def main():
             with controls, st.expander("Analiz ayarları"):
                 mode = st.radio("Çalışma biçimi", [SEMANTIC, RAG],
                                 help="RAG, ATT&CK kaynaklarından yerel modelle açıklama üretir.")
-                top_k = st.slider("ATT&CK aday sayısı", 1, 10, 3)
+                top_k = st.slider("Kaynak başına aday sayısı", 1, 10, DEFAULT_K,
+                                  help="MITRE ATT&CK ve NIST için aynı üst sınır.")
             with submit:
                 submitted = st.form_submit_button("Analiz et", type="primary", use_container_width=True)
         feedback = st.empty()

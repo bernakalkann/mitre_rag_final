@@ -31,22 +31,25 @@
             <output id="char-count" for="incident">0 karakter</output>
           </div>
         </div>
-        <div class="form-actions">
-          <button id="submit" type="submit" class="primary"><span id="spinner" class="spinner" hidden aria-hidden="true"></span><span id="submit-label">Analiz et</span></button>
-          <kbd class="shortcut" aria-hidden="true">Ctrl/⌘ + Enter</kbd>
-        </div>
-        <div class="settings">
-          <span id="settings-summary">Mod: Anlamsal arama · ATT&amp;CK 3 / NIST 3 aday</span>
-          <button type="button" id="settings-toggle" class="text-button" aria-expanded="false" aria-controls="settings-panel">Değiştir</button>
-        </div>
-        <div id="settings-panel" class="settings-panel" hidden>
-          <fieldset>
+        <div class="analysis-options">
+          <fieldset id="mode-options">
             <legend>Analiz modu</legend>
             <label class="mode"><input type="radio" name="mode" value="semantic" checked><span>Anlamsal arama<small>ATT&amp;CK ve NIST adaylarını getirir.</small></span></label>
             <label class="mode"><input type="radio" name="mode" value="rag"><span>Kaynaklı açıklama<small>ATT&amp;CK kaynaklarına dayalı yerel model yorumu ekler.</small></span></label>
           </fieldset>
-          <label class="candidate-input" for="limit">ATT&amp;CK aday sayısı <input type="number" id="limit" name="k" min="1" max="10" value="3" required></label>
           <p id="model-warning" class="muted" hidden>Yerel modele ulaşılamıyor. Adaylar yine aranır.</p>
+          <div class="candidate-limit">
+            <label for="limit">Kaynak başına aday sayısı</label>
+            <select id="limit" name="k" aria-describedby="limit-help">
+              <option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option>
+              <option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
+            </select>
+            <p id="limit-help" class="muted">MITRE ATT&amp;CK ve NIST için aynı üst sınır.</p>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button id="submit" type="submit" class="primary"><span id="spinner" class="spinner" hidden aria-hidden="true"></span><span id="submit-label">Analiz et</span></button>
+          <kbd class="shortcut" aria-hidden="true">Ctrl/⌘ + Enter</kbd>
         </div>
         <div id="analysis-status" class="status" role="status" aria-live="polite"></div>
         <div id="analysis-error" class="error-panel" role="alert" hidden></div>

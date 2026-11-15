@@ -18,7 +18,6 @@ const functions = {
 };
 
 let examples = {};
-let nistLimit = 3;
 let modelReady = null;
 let modelName = "qwen3:8b";
 let lastResult = null;
@@ -68,9 +67,7 @@ function mode() {
   return form.elements.mode.value;
 }
 
-function updateSettings() {
-  const label = mode() === "rag" ? "Kaynaklı açıklama" : "Anlamsal arama";
-  byId("settings-summary").textContent = `Mod: ${label} · ATT&CK ${byId("limit").value || "—"} / NIST ${nistLimit} aday`;
+function updateModelWarning() {
   byId("model-warning").hidden = mode() !== "rag" || modelReady !== false;
 }
 
@@ -98,7 +95,6 @@ function setBusy(busy) {
   running = busy;
   byId("submit").disabled = busy;
   byId("examples").disabled = busy;
-  byId("settings-toggle").disabled = busy;
   byId("limit").disabled = busy;
   for (const option of form.elements.mode) option.disabled = busy;
   incident.readOnly = busy;
@@ -128,15 +124,8 @@ form.addEventListener("submit", async (event) => {
     incident.focus();
     return;
   }
-  const limit = byId("limit");
-  if (!limit.validity.valid) {
-    if (byId("settings-panel").hidden) byId("settings-toggle").click();
-    limit.reportValidity();
-    return;
-  }
-
   const requestedMode = mode();
-  const k = Number(limit.value);
+  const k = Number(byId("limit").value);
   byId("analysis-error").hidden = true;
   setBusy(true);
   const started = performance.now();
@@ -196,13 +185,7 @@ incident.addEventListener("keydown", (event) => {
   }
 });
 
-byId("settings-toggle").addEventListener("click", (event) => {
-  const panel = byId("settings-panel");
-  panel.hidden = !panel.hidden;
-  event.currentTarget.setAttribute("aria-expanded", String(!panel.hidden));
-  event.currentTarget.textContent = panel.hidden ? "Değiştir" : "Ayarları kapat";
-});
-byId("settings-panel").addEventListener("input", updateSettings);
+byId("mode-options").addEventListener("change", updateModelWarning);
 byId("examples").addEventListener("change", (event) => {
   const text = examples[event.target.value];
   event.target.value = "";
@@ -550,7 +533,7 @@ function renderResults(data, requestedMode, k) {
   incident.style.removeProperty("height");
   const label = requestedMode === "rag" ? "Kaynaklı açıklama" : "Anlamsal arama";
   const elapsed = data.duration_ms < 100 ? "<0,1" : duration.format(data.duration_ms / 1000);
-  byId("result-meta").textContent = `${label} · ATT&CK en çok ${k} / NIST en çok ${nistLimit} · ${elapsed} sn`;
+  byId("result-meta").textContent = `${label} · Kaynak başına en çok ${k} aday · ${elapsed} sn`;
   byId("analyzed-text").textContent = data.export.query;
   clampToggle(byId("analyzed-text"), byId("expand-incident"), 3);
   updateInput();
@@ -569,12 +552,10 @@ wide.addEventListener("change", () => {
 
 fetchJson("/api/examples").then((data) => {
   examples = data.examples;
-  nistLimit = data.nist_k;
-  if (!byId("limit").matches(":focus") && byId("limit").value === byId("limit").defaultValue) {
+  if (!byId("limit").matches(":focus") && byId("limit").selectedOptions[0].defaultSelected) {
     byId("limit").value = data.default_k;
   }
   for (const label of Object.keys(examples)) byId("examples").add(new Option(label, label));
-  updateSettings();
 }).catch(() => { byId("examples").disabled = true; });
 
 fetchJson("/api/health").then((data) => {
@@ -585,5 +566,5 @@ fetchJson("/api/health").then((data) => {
     data.nist_ready ? `NIST CSF · ${data.nist_count} alt kategori` : "NIST hazır değil",
     modelReady ? "Ollama erişilebilir" : (data.ollama.reachable ? `${data.model} kurulu değil` : "Ollama erişilemiyor"),
   ].join(" · ");
-  updateSettings();
+  updateModelWarning();
 }).catch(() => { byId("health").textContent = "Analiz sunucusuna ulaşılamıyor"; });

@@ -42,7 +42,7 @@ def health(request: Request):
 
 @app.get("/api/examples")
 def examples():
-    return {"examples": service.EXAMPLES, "default_k": service.DEFAULT_K, "nist_k": service.NIST_K}
+    return {"examples": service.EXAMPLES, "default_k": service.DEFAULT_K}
 
 
 @app.post("/api/analyze")
