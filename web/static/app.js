@@ -26,6 +26,7 @@ let selected = null;
 let running = false;
 let exportUrl = null;
 const rows = new Map();
+const mapButtons = new Map();
 
 function element(tag, text, className) {
   const node = document.createElement(tag);
@@ -348,8 +349,54 @@ function renderEvidence(row) {
   return panel;
 }
 
+function renderEvidenceMap() {
+  const map = byId("evidence-map");
+  const branches = byId("map-branches");
+  mapButtons.clear();
+  branches.replaceChildren();
+  map.hidden = rows.size === 0;
+
+  for (const [kind, source] of Object.entries(sourceInfo)) {
+    const candidates = Array.from(rows).filter(([, entry]) => entry.row.kind === kind);
+    if (!candidates.length) continue;
+
+    const branch = element("div", undefined, `map-branch source-${kind}`);
+    const heading = element("h4", source.name, "map-source");
+    const list = element("ul", undefined, "map-nodes");
+    list.setAttribute("aria-label", source.name + " adayları");
+    for (const [key, { row }] of candidates) {
+      const node = button(undefined, () => {
+        selectRow(key);
+        const panel = wide.matches ? desktopEvidence : rows.get(key).li.querySelector(".evidence-inline");
+        const title = panel?.querySelector("h3");
+        if (!title) return;
+        const bounds = title.getBoundingClientRect();
+        // Move focus only when we need to reveal evidence outside the viewport.
+        if (bounds.top < 100 || bounds.bottom > window.innerHeight) {
+          title.tabIndex = -1;
+          title.scrollIntoView({ block: "center", behavior: reducedMotion.matches ? "auto" : "smooth" });
+          title.focus({ preventScroll: true });
+        }
+      }, "map-node");
+      node.setAttribute("aria-label", `${source.name} · ${row.code} · ${row.title}`);
+      node.append(element("code", row.code), element("span", row.title));
+      mapButtons.set(key, node);
+      const item = element("li");
+      item.append(node);
+      list.append(item);
+    }
+    branch.append(heading, list);
+    branches.append(branch);
+  }
+}
+
 function selectRow(key, toggle = false) {
   selected = !wide.matches && toggle && selected === key ? null : key;
+  for (const [id, node] of mapButtons) {
+    node.setAttribute("aria-pressed", String(id === selected));
+    if (wide.matches) node.setAttribute("aria-controls", "kanit-paneli");
+    else node.removeAttribute("aria-controls");
+  }
   desktopEvidence.replaceChildren();
   for (const [id, entry] of rows) {
     entry.li.querySelector(".evidence-inline")?.remove();
@@ -373,6 +420,7 @@ function selectRow(key, toggle = false) {
     panel.classList.add("evidence-inline");
     panel.id = "satir-kaniti";
     entry.trigger.setAttribute("aria-controls", panel.id);
+    mapButtons.get(selected)?.setAttribute("aria-controls", panel.id);
     entry.li.append(panel);
   }
 }
@@ -437,6 +485,7 @@ function renderModel(explanation) {
 function renderResults(data, requestedMode, k) {
   rows.clear();
   sourceGroups.replaceChildren(renderSource("attack", data.attack), renderSource("nist", data.nist));
+  renderEvidenceMap();
   results.hidden = false;
   byId("skip-results").hidden = false;
   byId("composer").classList.add("compact");

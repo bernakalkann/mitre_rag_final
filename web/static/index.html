@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MITRE-RAG · Olay analizi</title>
   <link rel="stylesheet" href="/static/app.css">
+  <link rel="stylesheet" href="/static/evidence-map.css">
   <script src="/static/app.js" defer></script>
 </head>
 <body>
@@ -64,11 +65,19 @@
       </div>
       <div id="previous" class="previous" hidden></div>
       <div id="result-content">
-        <div class="incident-record">
+        <div id="analyzed-incident" class="incident-record">
           <div><strong>Analiz edilen olay</strong><span id="changed" class="muted" hidden>Metin değişti · sonuçlar önceki metne ait</span></div>
           <blockquote id="analyzed-text" class="clamped"></blockquote>
           <button id="expand-incident" type="button" class="text-button" aria-expanded="false" aria-controls="analyzed-text" hidden>Tamamını göster</button>
         </div>
+        <section id="evidence-map" class="evidence-map" aria-labelledby="evidence-map-title" hidden>
+          <div class="evidence-map-header">
+            <h3 id="evidence-map-title">Kanıt haritası</h3>
+            <p class="muted">Her bağlantı bir arama adayını gösterir. Kanıtını okumak için adayı seçin.</p>
+          </div>
+          <div class="map-root"><a href="#analyzed-incident">Analiz edilen olay</a></div>
+          <div id="map-branches" class="map-branches"></div>
+        </section>
         <div class="workspace-grid">
           <div id="result-lists">
             <section id="model-block" class="model-block" aria-labelledby="model-title" hidden></section>
