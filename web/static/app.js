@@ -23,7 +23,6 @@ let modelReady = null;
 let modelName = "qwen3:8b";
 let lastResult = null;
 let selected = null;
-let activeTactic = null;
 let running = false;
 let exportUrl = null;
 const rows = new Map();
@@ -220,14 +219,14 @@ function rowData(kind, item, index, total) {
     const tactics = [...new Set((item.tactics || []).map((value) => value.replaceAll("-", " ").replace(/\b\w/g, (c) => c.toUpperCase())))];
     const parent = item.parent_attack_id;
     return { kind, code: item.attack_id, title: item.name, rank: index + 1, total,
-      score: item.score ?? item.retrieval_score, url: item.source_url, tactics,
+      score: item.score ?? item.retrieval_score, url: item.source_url, filterValues: tactics,
       body: item.evidence_excerpt ?? item.excerpt, fields: [["Taktik", tactics.join(", ")], ["Üst teknik", parent]],
       subtitle: [tactics.join(", "), parent && `Üst teknik: ${parent}`].filter(Boolean).join(" · ") };
   }
   const fn = functions[item.id.slice(0, 2)] || item.function;
   return { kind, code: item.id, title: item.category, rank: index + 1, total, score: item.score,
     url: lastResult.export.nist_csf?.source_document || lastResult.export.nist_csf?.source_url,
-    body: item.description,
+    body: item.description, filterValues: fn ? [fn] : [],
     fields: [["İşlev", fn], ["Kategori", item.category]], subtitle: fn };
 }
 
@@ -246,7 +245,7 @@ function renderSource(kind, source) {
   const name = element("div");
   name.append(element("h3", info.name), element("p", info.purpose));
   const count = element("span", `${source.items.length} aday`, "count mono");
-  if (kind === "attack") count.id = "attack-visible-count";
+  count.id = `${kind}-visible-count`;
   header.append(name, count);
   section.append(header);
   if (kind === "nist" && lastResult.explanation) {
@@ -394,15 +393,14 @@ function renderEvidenceMap() {
   }
 }
 
-function applyTacticFilter(tactic) {
-  activeTactic = tactic;
+function applySourceFilter(kind, value) {
   let firstVisible = null;
   let visible = 0;
   let total = 0;
   for (const [key, { row, li }] of rows) {
-    if (row.kind !== "attack") continue;
+    if (row.kind !== kind) continue;
     total += 1;
-    const show = tactic === null || row.tactics.includes(tactic);
+    const show = value === null || row.filterValues.includes(value);
     li.hidden = !show;
     const node = mapButtons.get(key);
     if (node) node.parentElement.hidden = !show;
@@ -411,42 +409,42 @@ function applyTacticFilter(tactic) {
       visible += 1;
     }
   }
-  for (const option of byId("tactic-options").children) {
-    option.setAttribute("aria-pressed", String(option.dataset.tactic === (tactic ?? "")));
+  for (const option of byId(`${kind}-filter-options`).children) {
+    option.setAttribute("aria-pressed", String(option.dataset.filterValue === (value ?? "")));
   }
-  byId("attack-visible-count").textContent = tactic === null ? `${total} aday` : `${visible} / ${total} aday`;
-  byId("tactic-filter-status").textContent = tactic === null
-    ? `${total} MITRE adayı gösteriliyor`
-    : `${tactic} · ${visible} MITRE adayı gösteriliyor`;
-  if (rows.get(selected)?.li.hidden) selectRow(wide.matches ? firstVisible : null);
+  const count = value === null ? `${total} aday` : `${visible} / ${total} aday`;
+  byId(`${kind}-visible-count`).textContent = count;
+  byId(`${kind}-filter-status`).textContent = `${count} gösteriliyor`;
+  const current = rows.get(selected);
+  if (current?.row.kind === kind && current.li.hidden) selectRow(wide.matches ? firstVisible : null);
 }
 
-function renderTacticFilter() {
-  const section = byId("tactic-filter");
-  const options = byId("tactic-options");
+function renderSourceFilter(kind) {
+  const section = byId(`${kind}-filter`);
+  const options = byId(`${kind}-filter-options`);
   const counts = new Map();
   let total = 0;
-  activeTactic = null;
   options.replaceChildren();
   for (const { row } of rows.values()) {
-    if (row.kind !== "attack") continue;
+    if (row.kind !== kind) continue;
     total += 1;
-    for (const tactic of row.tactics) counts.set(tactic, (counts.get(tactic) ?? 0) + 1);
+    for (const value of row.filterValues) counts.set(value, (counts.get(value) ?? 0) + 1);
   }
   section.hidden = counts.size === 0;
   if (section.hidden) return;
 
-  const tactics = [...counts].sort(([a, countA], [b, countB]) => countB - countA || a.localeCompare(b));
-  for (const [tactic, count] of [[null, total], ...tactics]) {
-    const option = button(`${tactic ?? "Tümü"} · ${count}`, () => applyTacticFilter(tactic), "tactic-option");
-    option.dataset.tactic = tactic ?? "";
+  const sorted = [...counts].sort(([a, countA], [b, countB]) => countB - countA || a.localeCompare(b));
+  for (const [value, count] of [[null, total], ...sorted]) {
+    const option = button(`${value ?? "Tümü"} · ${count}`, () => applySourceFilter(kind, value), "source-filter-option");
+    option.dataset.filterValue = value ?? "";
     options.append(option);
   }
-  applyTacticFilter(null);
+  applySourceFilter(kind, null);
 }
 
 function selectRow(key, toggle = false) {
-  if (activeTactic !== null && rows.get(key)?.li.hidden) applyTacticFilter(null);
+  const entryToSelect = rows.get(key);
+  if (entryToSelect?.li.hidden) applySourceFilter(entryToSelect.row.kind, null);
   selected = !wide.matches && toggle && selected === key ? null : key;
   for (const [id, node] of mapButtons) {
     node.setAttribute("aria-pressed", String(id === selected));
@@ -542,7 +540,8 @@ function renderResults(data, requestedMode, k) {
   rows.clear();
   sourceGroups.replaceChildren(renderSource("attack", data.attack), renderSource("nist", data.nist));
   renderEvidenceMap();
-  renderTacticFilter();
+  renderSourceFilter("attack");
+  renderSourceFilter("nist");
   results.hidden = false;
   byId("skip-results").hidden = false;
   byId("composer").classList.add("compact");
@@ -563,7 +562,9 @@ function renderResults(data, requestedMode, k) {
 }
 
 wide.addEventListener("change", () => {
-  if (lastResult) selectRow(wide.matches ? (selected ?? rows.keys().next().value ?? null) : null);
+  if (!lastResult) return;
+  const firstVisible = [...rows].find(([, entry]) => !entry.li.hidden)?.[0] ?? null;
+  selectRow(wide.matches ? selected ?? firstVisible : null);
 });
 
 fetchJson("/api/examples").then((data) => {
