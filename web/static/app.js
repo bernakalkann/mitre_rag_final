@@ -23,6 +23,7 @@ let modelReady = null;
 let modelName = "qwen3:8b";
 let lastResult = null;
 let selected = null;
+let activeTactic = null;
 let running = false;
 let exportUrl = null;
 const rows = new Map();
@@ -216,10 +217,10 @@ byId("examples").addEventListener("change", (event) => {
 
 function rowData(kind, item, index, total) {
   if (kind === "attack") {
-    const tactics = (item.tactics || []).map((value) => value.replaceAll("-", " ").replace(/\b\w/g, (c) => c.toUpperCase()));
+    const tactics = [...new Set((item.tactics || []).map((value) => value.replaceAll("-", " ").replace(/\b\w/g, (c) => c.toUpperCase())))];
     const parent = item.parent_attack_id;
     return { kind, code: item.attack_id, title: item.name, rank: index + 1, total,
-      score: item.score ?? item.retrieval_score, url: item.source_url,
+      score: item.score ?? item.retrieval_score, url: item.source_url, tactics,
       body: item.evidence_excerpt ?? item.excerpt, fields: [["Taktik", tactics.join(", ")], ["Üst teknik", parent]],
       subtitle: [tactics.join(", "), parent && `Üst teknik: ${parent}`].filter(Boolean).join(" · ") };
   }
@@ -244,7 +245,9 @@ function renderSource(kind, source) {
   const header = element("div", undefined, "source-title");
   const name = element("div");
   name.append(element("h3", info.name), element("p", info.purpose));
-  header.append(name, element("span", `${source.items.length} aday`, "count mono"));
+  const count = element("span", `${source.items.length} aday`, "count mono");
+  if (kind === "attack") count.id = "attack-visible-count";
+  header.append(name, count);
   section.append(header);
   if (kind === "nist" && lastResult.explanation) {
     section.append(element("p", "NIST sonuçları bağımsız anlamsal aramadan gelir.", "source-note"));
@@ -287,10 +290,11 @@ function renderSource(kind, source) {
     }
     list.addEventListener("keydown", (event) => {
       if (!["ArrowUp", "ArrowDown"].includes(event.key)) return;
-      const index = buttons.indexOf(event.target);
+      const visibleButtons = buttons.filter((candidate) => !candidate.parentElement.hidden);
+      const index = visibleButtons.indexOf(event.target);
       if (index < 0) return;
       event.preventDefault();
-      buttons[Math.min(buttons.length - 1, Math.max(0, index + (event.key === "ArrowDown" ? 1 : -1)))].focus();
+      visibleButtons[Math.min(visibleButtons.length - 1, Math.max(0, index + (event.key === "ArrowDown" ? 1 : -1)))].focus();
     });
     section.append(list);
   }
@@ -390,7 +394,59 @@ function renderEvidenceMap() {
   }
 }
 
+function applyTacticFilter(tactic) {
+  activeTactic = tactic;
+  let firstVisible = null;
+  let visible = 0;
+  let total = 0;
+  for (const [key, { row, li }] of rows) {
+    if (row.kind !== "attack") continue;
+    total += 1;
+    const show = tactic === null || row.tactics.includes(tactic);
+    li.hidden = !show;
+    const node = mapButtons.get(key);
+    if (node) node.parentElement.hidden = !show;
+    if (show) {
+      firstVisible ??= key;
+      visible += 1;
+    }
+  }
+  for (const option of byId("tactic-options").children) {
+    option.setAttribute("aria-pressed", String(option.dataset.tactic === (tactic ?? "")));
+  }
+  byId("attack-visible-count").textContent = tactic === null ? `${total} aday` : `${visible} / ${total} aday`;
+  byId("tactic-filter-status").textContent = tactic === null
+    ? `${total} MITRE adayı gösteriliyor`
+    : `${tactic} · ${visible} MITRE adayı gösteriliyor`;
+  if (rows.get(selected)?.li.hidden) selectRow(wide.matches ? firstVisible : null);
+}
+
+function renderTacticFilter() {
+  const section = byId("tactic-filter");
+  const options = byId("tactic-options");
+  const counts = new Map();
+  let total = 0;
+  activeTactic = null;
+  options.replaceChildren();
+  for (const { row } of rows.values()) {
+    if (row.kind !== "attack") continue;
+    total += 1;
+    for (const tactic of row.tactics) counts.set(tactic, (counts.get(tactic) ?? 0) + 1);
+  }
+  section.hidden = counts.size === 0;
+  if (section.hidden) return;
+
+  const tactics = [...counts].sort(([a, countA], [b, countB]) => countB - countA || a.localeCompare(b));
+  for (const [tactic, count] of [[null, total], ...tactics]) {
+    const option = button(`${tactic ?? "Tümü"} · ${count}`, () => applyTacticFilter(tactic), "tactic-option");
+    option.dataset.tactic = tactic ?? "";
+    options.append(option);
+  }
+  applyTacticFilter(null);
+}
+
 function selectRow(key, toggle = false) {
+  if (activeTactic !== null && rows.get(key)?.li.hidden) applyTacticFilter(null);
   selected = !wide.matches && toggle && selected === key ? null : key;
   for (const [id, node] of mapButtons) {
     node.setAttribute("aria-pressed", String(id === selected));
@@ -486,6 +542,7 @@ function renderResults(data, requestedMode, k) {
   rows.clear();
   sourceGroups.replaceChildren(renderSource("attack", data.attack), renderSource("nist", data.nist));
   renderEvidenceMap();
+  renderTacticFilter();
   results.hidden = false;
   byId("skip-results").hidden = false;
   byId("composer").classList.add("compact");
