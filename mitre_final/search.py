@@ -9,13 +9,14 @@ from time import perf_counter
 import numpy as np
 
 from .data import read_records, sha256, write_json
-from .lexical import B, K1, BM25Index
+from .lexical import B, FUSION_DEPTH, K1, RRF_CONSTANT, BM25Index, reciprocal_rank_fusion
 
 DEFAULT_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-SEARCH_METHODS = ("semantic", "bm25")
+SEARCH_METHODS = ("semantic", "bm25", "hybrid")
 SCORE_NOTICES = {
     "semantic": "Cosine similarity is not a probability or a confirmed attack classification.",
     "bm25": "BM25 measures lexical relevance. It is not a probability or a confirmed attack classification.",
+    "hybrid": "RRF combines ranks. Its score is not a probability or a confirmed attack classification.",
 }
 
 
@@ -158,18 +159,26 @@ def search(index_dir, query, top_k=5, offline=False, *, method="semantic"):
         if sha256(index_dir / name) != expected:
             raise ValueError("Index integrity check failed: " + name)
 
-    if method == "bm25":
+    parameters = {}
+    depth = top_k
+    if method == "hybrid":
+        depth = max(FUSION_DEPTH, top_k)
+        parameters.update(rrf_constant=RRF_CONSTANT, fusion_depth=depth)
+    if method != "semantic":
         lexical = _read_bm25(index_dir, artifacts["records.json"])
-        start = perf_counter()
-        hits = lexical.rank(query, top_k)
-        parameters = {"k1": K1, "b": B}
-    else:
+        parameters.update(k1=K1, b=B)
+    if method != "bm25":
         model = load_model(manifest["model_id"], manifest["model_revision"], offline)
         if len(model.tokenizer.encode(query, verbose=False)) > model.max_seq_length:
             raise ValueError("Query exceeds model token limit; shorten the incident description")
-        start = perf_counter()
-        hits = _semantic_rank(index_dir, artifacts, model, query, top_k)
-        parameters = {}
+
+    start = perf_counter()
+    rankings = {}
+    if method != "bm25":
+        rankings["semantic"] = _semantic_rank(index_dir, artifacts, model, query, depth)
+    if method != "semantic":
+        rankings["bm25"] = lexical.rank(query, depth)
+    hits = reciprocal_rank_fusion(rankings, top_k) if method == "hybrid" else rankings[method]
     return {"query": query, "results": hits, "method": method, "parameters": parameters,
             "query_and_ranking_seconds": perf_counter() - start,
             "timing_excludes_model_load": True, "index_manifest": manifest,

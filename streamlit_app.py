@@ -1,4 +1,4 @@
-"""Streamlit presentation for the existing semantic search and RAG pipeline."""
+"""Streamlit presentation for the shared retrieval and RAG pipeline."""
 import json
 import sys
 from collections import Counter
@@ -11,7 +11,9 @@ import streamlit.components.v1 as components
 
 from mitre_final.rag import DEFAULT_LLM, NOTICE
 from mitre_final.search import DEFAULT_MODEL
-from mitre_final.service import DEFAULT_K, EXAMPLES, RAG, ROOT, SEMANTIC, analyze, read_attack_manifest
+from mitre_final.service import DEFAULT_K, EXAMPLES, MODE_LABELS, RAG, ROOT, analyze, read_attack_manifest
+
+SCORE_LABELS = {"semantic": "Benzerlik", "bm25": "BM25 skoru", "hybrid": "RRF skoru"}
 
 
 def render_header():
@@ -54,7 +56,7 @@ def load_example():
     st.session_state["incident"] = EXAMPLES[st.session_state["example"]]
 
 
-def similarity(hit):
+def hit_score(hit):
     return hit["score"] if "score" in hit else hit["retrieval_score"]
 
 
@@ -65,7 +67,7 @@ def tactic_label(tactic):
 def render_chart(hits):
     rows = []
     for hit in hits:
-        score = similarity(hit)
+        score = hit_score(hit)
         position = 50 + 50 * min(0, max(-1, score))
         width = 50 * min(1, abs(score))
         rows.append(
@@ -101,7 +103,7 @@ def render_candidate_group(name, purpose, kind, candidates, selected, error):
                   use_container_width=True, on_click=select_candidate, args=(candidate,))
 
 
-def render_evidence(selected, sources, matches, reference):
+def render_evidence(selected, sources, matches, reference, method):
     if selected is None:
         st.caption("Kanıt gösterilebilecek bir aday bulunamadı.")
         return
@@ -109,8 +111,9 @@ def render_evidence(selected, sources, matches, reference):
     kind, identifier = selected
     _, title, score, hit = sources[selected]
     source_name = "MITRE ATT&CK" if kind == "attack" else "NIST CSF 2.0"
+    score_label = SCORE_LABELS[method] if kind == "attack" else SCORE_LABELS["semantic"]
     st.markdown(f'<div class="evidence-meta" role="status">{source_name} · <code>{escape(identifier)}</code>'
-                f' · Benzerlik {score:.4f}</div>', unsafe_allow_html=True)
+                f' · {score_label} {score:.4f}</div>', unsafe_allow_html=True)
     st.subheader(title)
     if kind == "attack":
         tactics = ", ".join(map(tactic_label, hit.get("tactics", [])))
@@ -118,6 +121,10 @@ def render_evidence(selected, sources, matches, reference):
             st.caption(f"Taktik · {tactics}")
         if hit.get("parent_attack_id"):
             st.caption(f"Üst teknik · {hit['parent_attack_id']}")
+        component_ranks = hit.get("component_ranks", {})
+        if component_ranks:
+            st.caption(" · ".join(f"{MODE_LABELS[name]} sırası {rank}"
+                                  for name, rank in component_ranks.items()))
         match = matches.get(identifier)
         if match:
             st.markdown("**Neden bu teknik?**")
@@ -143,9 +150,11 @@ def render_evidence(selected, sources, matches, reference):
     st.link_button(link_label, url)
 
 
-def render_attack_statistics(hits):
-    with st.expander("Skor grafiği ve taktik dağılımı"):
-        render_chart(hits)
+def render_attack_statistics(hits, method):
+    title = "Skor grafiği ve taktik dağılımı" if method == "semantic" else "Taktik dağılımı"
+    with st.expander(title):
+        if method == "semantic":
+            render_chart(hits)
         counts = Counter(tactic for hit in hits for tactic in set(hit.get("tactics", [])))
         if counts:
             rows = "".join(
@@ -164,9 +173,10 @@ def render_results(saved):
     result = saved["result"]
     reference = saved["nist"]
     errors = saved.get("errors", {})
+    method = result.get("method", "semantic")
     hits = result.get("retrieved_sources", result.get("results", []))
     matches = {match["attack_id"]: match for match in result.get("matches", [])}
-    attack = [(hit["attack_id"], hit["name"], similarity(hit), hit) for hit in hits]
+    attack = [(hit["attack_id"], hit["name"], hit_score(hit), hit) for hit in hits]
     nist = [(hit["id"], hit["category"], hit["score"], hit)
             for hit in reference["results"]] if reference is not None else []
     sources = {("attack", row[0]): row for row in attack}
@@ -195,18 +205,18 @@ def render_results(saved):
             candidates, evidence = st.columns([5, 6])
             with candidates, st.container(border=True, key="candidate_list"):
                 st.subheader("Adaylar")
-                st.caption("Bir aday seçin. Benzerlik skorları her kaynak içinde sıralanır.")
-                render_candidate_group("MITRE ATT&CK", "Olayla ilişkili teknikler",
+                st.caption("Kanıtı görmek için bir aday seçin.")
+                render_candidate_group("MITRE ATT&CK", SCORE_LABELS[method],
                                        "attack", attack, selected, errors.get("attack"))
-                render_candidate_group("NIST CSF 2.0", "İncelenecek savunma başlıkları",
+                render_candidate_group("NIST CSF 2.0", "Anlamsal benzerlik",
                                        "nist", nist, selected, errors.get("nist"))
             with evidence, st.container(border=True, key="evidence_panel"):
                 st.markdown('<h3 class="evidence-heading">Kaynak ve kanıt</h3>', unsafe_allow_html=True)
-                render_evidence(selected, sources, matches, reference)
+                render_evidence(selected, sources, matches, reference, method)
 
         st.caption(NOTICE)
         if hits:
-            render_attack_statistics(hits)
+            render_attack_statistics(hits, method)
         with st.expander("JSON çıktısı"):
             exported = {**result, "nist_csf": reference}
             st.download_button("JSON olarak indir", json.dumps(exported, ensure_ascii=False, indent=2),
@@ -239,8 +249,8 @@ def main():
                                  placeholder="Ne gözlendi? İlgili süreci, cihazı veya alarmı yazın.")
             controls, submit = st.columns([5, 2], vertical_alignment="top")
             with controls, st.expander("Analiz ayarları"):
-                mode = st.radio("Çalışma biçimi", [SEMANTIC, RAG],
-                                help="RAG, ATT&CK kaynaklarından yerel modelle açıklama üretir.")
+                mode = st.radio("Çalışma biçimi", list(MODE_LABELS.values()),
+                                help="Yöntem ATT&CK için geçerli. NIST anlamsal aranır.")
                 top_k = st.slider("Kaynak başına aday sayısı", 1, 10, DEFAULT_K,
                                   help="MITRE ATT&CK ve NIST için aynı üst sınır.")
             with submit:
@@ -260,10 +270,11 @@ def main():
             feedback.warning("Önce bir olay açıklaması girin.")
             return
 
-        message = ("ATT&CK ve NIST kaynakları taranıyor…" if mode == SEMANTIC
-                   else "Kaynaklar taranıyor ve yerel model ATT&CK açıklaması üretiyor…")
+        message = ("Kaynaklar taranıyor ve yerel model ATT&CK açıklaması üretiyor…" if mode == RAG
+                   else "ATT&CK ve NIST kaynakları taranıyor…")
+        selected_mode = next(key for key, label in MODE_LABELS.items() if label == mode)
         with feedback.container(), st.spinner(message):
-            response = analyze(query, "rag" if mode == RAG else "semantic", top_k)
+            response = analyze(query, selected_mode, top_k)
 
         errors = {kind: response[kind]["error"] for kind in ("attack", "nist")
                   if response[kind]["status"] == "error"}

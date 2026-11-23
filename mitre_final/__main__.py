@@ -29,7 +29,13 @@ def main():
     query.add_argument("--top-k", type=int, default=5)
     query.add_argument("--output", default=None)
     query.add_argument("--offline", action="store_true")
-    query.add_argument("--method", choices=("semantic", "bm25"), default="semantic")
+    query.add_argument("--method", choices=("semantic", "bm25", "hybrid"), default="semantic")
+    compare = commands.add_parser("compare", help="Run all three retrieval methods on the same demo queries")
+    compare.add_argument("--index", default="data/index")
+    compare.add_argument("--queries", default="examples/demo_queries.json")
+    compare.add_argument("--data-report", default="evidence/data_report.json")
+    compare.add_argument("--top-k", type=int, default=5)
+    compare.add_argument("--output", default=None)
     rag = commands.add_parser("rag", help="Retrieve ATT&CK sources and generate a checked local-model answer")
     rag.add_argument("query")
     rag.add_argument("--index", default="data/index")
@@ -65,6 +71,11 @@ def main():
     elif args.command == "search":
         from .search import search
         report = search(args.index, args.query, args.top_k, args.offline, method=args.method)
+        if args.output:
+            write_json(args.output, report)
+    elif args.command == "compare":
+        from .comparison import compare_retrieval
+        report = compare_retrieval(args.index, args.queries, args.data_report, args.top_k)
         if args.output:
             write_json(args.output, report)
     else:

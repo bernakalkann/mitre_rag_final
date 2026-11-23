@@ -6,7 +6,7 @@
   <title>MITRE-RAG · Olay analizi</title>
   <link rel="stylesheet" href="/static/app.css">
   <link rel="stylesheet" href="/static/evidence-map.css">
-  <script src="/static/app.js" defer></script>
+  <script src="/static/app.js?v=9-10" defer></script>
 </head>
 <body>
   <a id="skip-results" class="skip" href="#sonuclar" hidden>Sonuçlara atla</a>
@@ -34,7 +34,9 @@
         <div class="analysis-options">
           <fieldset id="mode-options">
             <legend>Analiz modu</legend>
-            <label class="mode"><input type="radio" name="mode" value="semantic" checked><span>Anlamsal arama<small>ATT&amp;CK ve NIST adaylarını getirir.</small></span></label>
+            <label class="mode"><input type="radio" name="mode" value="semantic" checked><span>Anlamsal arama<small>Benzer anlamdaki teknikleri bulur.</small></span></label>
+            <label class="mode"><input type="radio" name="mode" value="bm25"><span>Anahtar kelime (BM25)<small>Teknik adlarını ve ortak terimleri arar.</small></span></label>
+            <label class="mode"><input type="radio" name="mode" value="hybrid"><span>Hibrit arama<small>Anlamsal ve BM25 sıralarını birleştirir.</small></span></label>
             <label class="mode"><input type="radio" name="mode" value="rag"><span>Kaynaklı açıklama<small>ATT&amp;CK kaynaklarına dayalı yerel model yorumu ekler.</small></span></label>
           </fieldset>
           <p id="model-warning" class="muted" hidden>Yerel modele ulaşılamıyor. Adaylar yine aranır.</p>
@@ -44,7 +46,7 @@
               <option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option>
               <option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
             </select>
-            <p id="limit-help" class="muted">MITRE ATT&amp;CK ve NIST için aynı üst sınır.</p>
+            <p id="limit-help" class="muted">Seçilen yöntem ATT&amp;CK için geçerli. NIST anlamsal aranır.</p>
           </div>
         </div>
         <div class="form-actions">

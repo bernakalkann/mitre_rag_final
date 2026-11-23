@@ -21,7 +21,7 @@ Zaman kalırsa reranking, örnek logların daha ayrıntılı analizi, gelişmiş
 
 ## Tamamlanan görevler
 
-İlk 8 haftaya ait belgeler, veri işleme, anlamsal arama ve temel RAG akışı hazırlanmıştır. Olay açıklamasından kaynaklı yanıt üretimine kadar akış gerçek ATT&CK verisi, embedding modeli ve yerel LLM ile çalıştırılmıştır.
+İlk 10 haftanın görevleri tamamlandı. Temel RAG akışı gerçek ATT&CK verisi, embedding modeli ve yerel LLM ile çalıştırıldı. ATT&CK için BM25 ve hibrit arama eklendi ve üç arama yöntemi aynı örnek sorgularla karşılaştırıldı.
 
 | Hafta | Görev | Hazırlanan çıktı | Durum |
 |---|---|---|---|
@@ -33,13 +33,15 @@ Zaman kalırsa reranking, örnek logların daha ayrıntılı analizi, gelişmiş
 | 6 | Ortam ve veri hazırlığını yapma | [Çalışan veri işleme adımı](docs/06_ortam_ve_veri.md) | Tamamlandı |
 | 7 | Embedding üretme ve benzerlik aramasını geliştirme | [Anlamsal arama modülü](docs/07_anlamsal_arama.md) ve [demo çıktıları](evidence/demo_summary.json) | Tamamlandı |
 | 8 | Aday tekniklerden temel yanıt akışını oluşturma | [İlk uçtan uca RAG demosu](docs/08_temel_rag.md) ve [gerçek çıktı](evidence/week08_rag_demo_tr.json) | Tamamlandı |
-| 9 | BM25 ile anahtar kelime araması | [BM25 arama notları](docs/09_10_bm25_ve_hibrit_arama.md) | Tamamlandı |
+| 9 | BM25 ile anahtar kelime araması | [BM25 ve hibrit arama notları](docs/09_10_bm25_ve_hibrit_arama.md) | Tamamlandı |
+| 10 | Hibrit arama ve ilk karşılaştırma | [Dört sorgunun karşılaştırma çıktısı](evidence/week10_retrieval_comparison.json) | Tamamlandı |
 
 ### Erken demo arayüzü
 
 Test ve gösterim için 11. haftadaki basit arayüzün ilk sürümü öne alınmıştır.
-Anlamsal arama ve temel RAG akışı **Kanıt masası** web arayüzü ve Streamlit
-üzerinden kullanılabilir. İki arayüz aynı Python analiz servisini çağırır.
+**Kanıt Masası** web arayüzü ve Streamlit üzerinden ATT&CK için anlamsal arama,
+BM25, hibrit arama ve kaynaklı açıklama seçilebilir. İki arayüz aynı Python
+analiz servisini çağırır.
 
 Hazır indeks ve model önbelleği bulunan ortamda repo kökünden:
 
@@ -60,8 +62,8 @@ verdiğinde her iki kaynağın adayları bağımsız olarak gösterilebilir.
 İndeks hazırlama adımları [8. hafta belgesindedir](docs/08_temel_rag.md).
 Analiz tamamlandığında ekran sonuçlara kayar. Geniş ekranda kanıt paneli
 adayların yanında, dar ekranda seçilen satırın altında açılır. JSON çıktısı
-iki arayüzde de aynı analiz verisini içerir. ATT&CK için aday sayısı 1–10
-arasında ayarlanır. NIST için mevcut üç aday sınırı kullanılır.
+iki arayüzde de aynı analiz verisini içerir. Her iki kaynak için ortak aday sınırı
+1–10 arasında ayarlanır.
 
 Demo, aynı olay metnini [NIST CSF 2.0 Ek A](https://doi.org/10.6028/NIST.CSWP.29)
 içindeki 106 alt kategoride de arar. NIST için kategori adı ve İngilizce sonuç
@@ -70,13 +72,13 @@ indeksi ilk aramada CPU üzerinde hazırlanır ve uygulama sürecinin belleğind
 tutulur. İki kaynakta sıralama kosinüs benzerliğiyle ayrı yapılır. Yerel LLM
 ATT&CK açıklaması üretir ve NIST adayları kendi kaynak metniyle
 gösterilir. JSON çıktısı NIST sürümünü, yerel katalog SHA-256 değerini, model
-revizyonunu ve benzerlik skorlarını içerir. 9. hafta BM25 modülü terminalde kullanılabilir.
+revizyonunu ve benzerlik skorlarını içerir. NIST her analiz modunda anlamsal
+aranır.
 
 ## Sonraki görevler
 
 | Hafta | Planlanan çalışma |
 |---|---|
-| 10 | Hibrit arama ve ilk karşılaştırmalar |
 | 11 | Yerel LLM ve kullanıcı arayüzü |
 | 12 | Doğruluğu kontrol edilmiş etiketli test senaryoları |
 | 13 | Recall@K, MRR, yanıt süresi ve hata analizi |

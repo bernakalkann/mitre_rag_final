@@ -1,4 +1,4 @@
-"""Cover BM25 ranking and independence from embedding files."""
+"""Cover BM25 independence and RRF's technique-level ranking."""
 import json
 import unittest
 from pathlib import Path
@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from mitre_final.data import sha256
-from mitre_final.lexical import BM25Index
+from mitre_final.lexical import BM25Index, reciprocal_rank_fusion
 from mitre_final.search import search
 
 
@@ -43,3 +43,13 @@ class LexicalTests(unittest.TestCase):
         records_file.write_text("[]", encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "Index integrity"):
             search(index_dir, "PowerShell", method="bm25")
+
+    def test_fusion_rewards_agreement_and_deduplicates_codes(self):
+        first = {"attack_id": "T1059.001", "score": 0.8, "evidence_excerpt": "semantic"}
+        second = {"attack_id": "T1053.005", "score": 63}
+        result = reciprocal_rank_fusion({"semantic": [first], "bm25": [second, first, first]}, top_k=2)
+        self.assertEqual([hit["attack_id"] for hit in result], ["T1059.001", "T1053.005"])
+        self.assertEqual(result[0]["component_ranks"], {"semantic": 1, "bm25": 2})
+        self.assertEqual(result[0]["evidence_excerpt"], "semantic")
+        self.assertEqual(result[1]["component_ranks"], {"bm25": 1})
+        self.assertGreater(result[0]["score"], result[1]["score"])

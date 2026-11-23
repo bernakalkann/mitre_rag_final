@@ -26,7 +26,7 @@ app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 class AnalysisRequest(BaseModel):
     text: str
-    mode: Literal["semantic", "rag"] = "semantic"
+    mode: Literal["semantic", "bm25", "hybrid", "rag"] = "semantic"
     k: int = Field(default=service.DEFAULT_K, strict=True, ge=1, le=10)
 
 

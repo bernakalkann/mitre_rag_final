@@ -11,6 +11,12 @@ ROOT = Path(__file__).resolve().parents[1]
 INDEX_DIR = ROOT / "data/index"
 SEMANTIC = "Anlamsal arama"
 RAG = "Kaynaklı açıklama (RAG)"
+MODE_LABELS = {
+    "semantic": SEMANTIC,
+    "bm25": "Anahtar kelime (BM25)",
+    "hybrid": "Hibrit arama",
+    "rag": RAG,
+}
 DEFAULT_K = 3
 EXAMPLES = {
     "PowerShell": "Güvenlik ekibi, bir Windows uç noktasında PowerShell üzerinden şüpheli bir betik çalıştırıldığını gözlemledi.",
@@ -34,7 +40,7 @@ def read_attack_manifest(index_dir=INDEX_DIR):
 def analyze(text, mode="semantic", k=DEFAULT_K, *, index_dir=INDEX_DIR):
     if not text.strip():
         raise ValueError("Analiz için bir olay açıklaması yazın.")
-    if mode not in {"semantic", "rag"} or not 1 <= k <= 10:
+    if mode not in MODE_LABELS or not 1 <= k <= 10:
         raise ValueError("Analiz modu veya aday sayısı geçersiz.")
 
     started = monotonic()
@@ -60,7 +66,8 @@ def analyze(text, mode="semantic", k=DEFAULT_K, *, index_dir=INDEX_DIR):
 
         if attack_result is None:
             try:
-                attack_result = search.search(index_dir, text, k, offline=True)
+                method_options = {"method": mode} if mode in ("bm25", "hybrid") else {}
+                attack_result = search.search(index_dir, text, k, offline=True, **method_options)
             except SEARCH_ERRORS as exc:
                 errors["attack"] = str(exc)
 

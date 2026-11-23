@@ -1,0 +1,514 @@
+{
+  "dataset": {
+    "attack_version": "19.1",
+    "source_sha256": "bdf1ce86a4e604214c5076d37ae4dcb322678afc528df8492e6fdc1b554f5da3",
+    "records_sha256": "fef9134bf87d247abea1b2c4124c09e6a27a844ca0c6eaba371d129248906237"
+  },
+  "index_manifest": {
+    "model_id": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "model_revision": "e8f8c211226b894fcb81acc59f3b34ba3efd5f42",
+    "max_seq_length": 128,
+    "device": "cpu",
+    "record_count": 697,
+    "chunk_count": 1993,
+    "embedding_dimension": 384,
+    "index_seconds": 11.710047334025148,
+    "source_records_sha256": "fef9134bf87d247abea1b2c4124c09e6a27a844ca0c6eaba371d129248906237",
+    "artifacts": {
+      "vectors.npy": "5c8363a8165946f958ede7a25e988b2136f4bd46c30ffd8588b5365d068e574d",
+      "chunks.json": "a8721473f39fac51a5c02f47eb18ae55687933f8ebd3ac787ce938b8157972a4",
+      "records.json": "1584b409adee39faa946d140dce7a47b7474e8e7cd57ab099bcee6cb98098219"
+    },
+    "packages": {
+      "numpy": "2.5.1",
+      "sentence-transformers": "3.3.1",
+      "torch": "2.13.0",
+      "transformers": "4.46.3"
+    }
+  },
+  "queries_sha256": "8264ff7f9e3bb13677b85bc1192072ea06e2d31800412687d76d357527bb3165",
+  "environment": {
+    "python": "3.12.13",
+    "system": "macOS-26.6.2-arm64-arm-64bit",
+    "device": "cpu",
+    "packages": {
+      "numpy": "2.5.1",
+      "sentence-transformers": "3.3.1",
+      "torch": "2.13.0",
+      "transformers": "4.46.3"
+    }
+  },
+  "top_k": 5,
+  "parameters": {
+    "semantic": {},
+    "bm25": {
+      "k1": 1.2,
+      "b": 0.75
+    },
+    "hybrid": {
+      "rrf_constant": 60,
+      "fusion_depth": 50,
+      "k1": 1.2,
+      "b": 0.75
+    }
+  },
+  "timing": "One warm-cache run per query and method; index verification and initialization excluded.",
+  "results": [
+    {
+      "query": "An attacker used PowerShell to execute a malicious script on a Windows host.",
+      "inspect_candidate": "T1059.001",
+      "methods": {
+        "semantic": {
+          "target_rank": 1,
+          "query_and_ranking_ms": 10.372,
+          "candidates": [
+            {
+              "attack_id": "T1059.001",
+              "name": "PowerShell",
+              "rank": 1,
+              "score": 0.7819075584411621
+            },
+            {
+              "attack_id": "T1546.013",
+              "name": "PowerShell Profile",
+              "rank": 2,
+              "score": 0.6391596794128418
+            },
+            {
+              "attack_id": "T1689",
+              "name": "Downgrade Attack",
+              "rank": 3,
+              "score": 0.6328390836715698
+            },
+            {
+              "attack_id": "T1574.014",
+              "name": "AppDomainManager",
+              "rank": 4,
+              "score": 0.625698983669281
+            },
+            {
+              "attack_id": "T1216.002",
+              "name": "SyncAppvPublishingServer",
+              "rank": 5,
+              "score": 0.6175474524497986
+            }
+          ]
+        },
+        "bm25": {
+          "target_rank": null,
+          "query_and_ranking_ms": 0.89,
+          "candidates": [
+            {
+              "attack_id": "T1546.013",
+              "name": "PowerShell Profile",
+              "rank": 1,
+              "score": 15.158063720432818
+            },
+            {
+              "attack_id": "T1216.002",
+              "name": "SyncAppvPublishingServer",
+              "rank": 2,
+              "score": 12.407902865951916
+            },
+            {
+              "attack_id": "T1689",
+              "name": "Downgrade Attack",
+              "rank": 3,
+              "score": 11.535314141164797
+            },
+            {
+              "attack_id": "T1216.001",
+              "name": "PubPrn",
+              "rank": 4,
+              "score": 9.902343670761205
+            },
+            {
+              "attack_id": "T1059",
+              "name": "Command and Scripting Interpreter",
+              "rank": 5,
+              "score": 9.8493776463903
+            }
+          ]
+        },
+        "hybrid": {
+          "target_rank": 5,
+          "query_and_ranking_ms": 15.272,
+          "candidates": [
+            {
+              "attack_id": "T1546.013",
+              "name": "PowerShell Profile",
+              "rank": 1,
+              "score": 0.03252247488101534
+            },
+            {
+              "attack_id": "T1689",
+              "name": "Downgrade Attack",
+              "rank": 2,
+              "score": 0.031746031746031744
+            },
+            {
+              "attack_id": "T1216.002",
+              "name": "SyncAppvPublishingServer",
+              "rank": 3,
+              "score": 0.0315136476426799
+            },
+            {
+              "attack_id": "T1686.003",
+              "name": "Windows Host Firewall",
+              "rank": 4,
+              "score": 0.028577260665441927
+            },
+            {
+              "attack_id": "T1059.001",
+              "name": "PowerShell",
+              "rank": 5,
+              "score": 0.028298204527712725
+            }
+          ]
+        }
+      }
+    },
+    {
+      "query": "Saldırgan Windows bilgisayarda PowerShell kullanarak kötü amaçlı bir betik çalıştırdı.",
+      "inspect_candidate": "T1059.001",
+      "methods": {
+        "semantic": {
+          "target_rank": 1,
+          "query_and_ranking_ms": 13.325,
+          "candidates": [
+            {
+              "attack_id": "T1059.001",
+              "name": "PowerShell",
+              "rank": 1,
+              "score": 0.7616864442825317
+            },
+            {
+              "attack_id": "T1546.013",
+              "name": "PowerShell Profile",
+              "rank": 2,
+              "score": 0.5980352759361267
+            },
+            {
+              "attack_id": "T1564.003",
+              "name": "Hidden Window",
+              "rank": 3,
+              "score": 0.5936453342437744
+            },
+            {
+              "attack_id": "T1689",
+              "name": "Downgrade Attack",
+              "rank": 4,
+              "score": 0.5777090787887573
+            },
+            {
+              "attack_id": "T1543.003",
+              "name": "Windows Service",
+              "rank": 5,
+              "score": 0.5747367143630981
+            }
+          ]
+        },
+        "bm25": {
+          "target_rank": 1,
+          "query_and_ranking_ms": 0.652,
+          "candidates": [
+            {
+              "attack_id": "T1059.001",
+              "name": "PowerShell",
+              "rank": 1,
+              "score": 7.156599742144964
+            },
+            {
+              "attack_id": "T1216.002",
+              "name": "SyncAppvPublishingServer",
+              "rank": 2,
+              "score": 6.8673275501591196
+            },
+            {
+              "attack_id": "T1564.003",
+              "name": "Hidden Window",
+              "rank": 3,
+              "score": 6.575603738384667
+            },
+            {
+              "attack_id": "T1685.005",
+              "name": "Clear Windows Event Logs",
+              "rank": 4,
+              "score": 5.98726298374419
+            },
+            {
+              "attack_id": "T1021.006",
+              "name": "Windows Remote Management",
+              "rank": 5,
+              "score": 5.8850591543872355
+            }
+          ]
+        },
+        "hybrid": {
+          "target_rank": 1,
+          "query_and_ranking_ms": 14.881,
+          "candidates": [
+            {
+              "attack_id": "T1059.001",
+              "name": "PowerShell",
+              "rank": 1,
+              "score": 0.03278688524590164
+            },
+            {
+              "attack_id": "T1564.003",
+              "name": "Hidden Window",
+              "rank": 2,
+              "score": 0.031746031746031744
+            },
+            {
+              "attack_id": "T1216.002",
+              "name": "SyncAppvPublishingServer",
+              "rank": 3,
+              "score": 0.031054405392392875
+            },
+            {
+              "attack_id": "T1546.013",
+              "name": "PowerShell Profile",
+              "rank": 4,
+              "score": 0.030621785881252923
+            },
+            {
+              "attack_id": "T1689",
+              "name": "Downgrade Attack",
+              "rank": 5,
+              "score": 0.029513888888888888
+            }
+          ]
+        }
+      }
+    },
+    {
+      "query": "The adversary created a scheduled task to run a payload after reboot.",
+      "inspect_candidate": "T1053.005",
+      "methods": {
+        "semantic": {
+          "target_rank": 2,
+          "query_and_ranking_ms": 10.839,
+          "candidates": [
+            {
+              "attack_id": "T1053",
+              "name": "Scheduled Task/Job",
+              "rank": 1,
+              "score": 0.6224125623703003
+            },
+            {
+              "attack_id": "T1053.005",
+              "name": "Scheduled Task",
+              "rank": 2,
+              "score": 0.5864689350128174
+            },
+            {
+              "attack_id": "T1543",
+              "name": "Create or Modify System Process",
+              "rank": 3,
+              "score": 0.582254946231842
+            },
+            {
+              "attack_id": "T1529",
+              "name": "System Shutdown/Reboot",
+              "rank": 4,
+              "score": 0.5606689453125
+            },
+            {
+              "attack_id": "T1543.001",
+              "name": "Launch Agent",
+              "rank": 5,
+              "score": 0.5382403135299683
+            }
+          ]
+        },
+        "bm25": {
+          "target_rank": 1,
+          "query_and_ranking_ms": 1.007,
+          "candidates": [
+            {
+              "attack_id": "T1053.005",
+              "name": "Scheduled Task",
+              "rank": 1,
+              "score": 16.56150245161772
+            },
+            {
+              "attack_id": "T1053.003",
+              "name": "Cron",
+              "rank": 2,
+              "score": 15.484409028229088
+            },
+            {
+              "attack_id": "T1053",
+              "name": "Scheduled Task/Job",
+              "rank": 3,
+              "score": 15.088588862825322
+            },
+            {
+              "attack_id": "T1053.002",
+              "name": "At",
+              "rank": 4,
+              "score": 13.963799752641073
+            },
+            {
+              "attack_id": "T1053.006",
+              "name": "Systemd Timers",
+              "rank": 5,
+              "score": 12.380774038450046
+            }
+          ]
+        },
+        "hybrid": {
+          "target_rank": 1,
+          "query_and_ranking_ms": 15.752,
+          "candidates": [
+            {
+              "attack_id": "T1053.005",
+              "name": "Scheduled Task",
+              "rank": 1,
+              "score": 0.03252247488101534
+            },
+            {
+              "attack_id": "T1053",
+              "name": "Scheduled Task/Job",
+              "rank": 2,
+              "score": 0.032266458495966696
+            },
+            {
+              "attack_id": "T1529",
+              "name": "System Shutdown/Reboot",
+              "rank": 3,
+              "score": 0.030776515151515152
+            },
+            {
+              "attack_id": "T1053.002",
+              "name": "At",
+              "rank": 4,
+              "score": 0.03055037313432836
+            },
+            {
+              "attack_id": "T1574.013",
+              "name": "KernelCallbackTable",
+              "rank": 5,
+              "score": 0.02877846790890269
+            }
+          ]
+        }
+      }
+    },
+    {
+      "query": "A process accessed LSASS memory to obtain credentials.",
+      "inspect_candidate": "T1003.001",
+      "methods": {
+        "semantic": {
+          "target_rank": 1,
+          "query_and_ranking_ms": 10.539,
+          "candidates": [
+            {
+              "attack_id": "T1003.001",
+              "name": "LSASS Memory",
+              "rank": 1,
+              "score": 0.8611406683921814
+            },
+            {
+              "attack_id": "T1187",
+              "name": "Forced Authentication",
+              "rank": 2,
+              "score": 0.6499989628791809
+            },
+            {
+              "attack_id": "T1003.004",
+              "name": "LSA Secrets",
+              "rank": 3,
+              "score": 0.6423596143722534
+            },
+            {
+              "attack_id": "T1547.008",
+              "name": "LSASS Driver",
+              "rank": 4,
+              "score": 0.5652869343757629
+            },
+            {
+              "attack_id": "T1003.007",
+              "name": "Proc Filesystem",
+              "rank": 5,
+              "score": 0.5625185966491699
+            }
+          ]
+        },
+        "bm25": {
+          "target_rank": 1,
+          "query_and_ranking_ms": 0.819,
+          "candidates": [
+            {
+              "attack_id": "T1003.001",
+              "name": "LSASS Memory",
+              "rank": 1,
+              "score": 16.67081200323829
+            },
+            {
+              "attack_id": "T1547.008",
+              "name": "LSASS Driver",
+              "rank": 2,
+              "score": 14.391874166758686
+            },
+            {
+              "attack_id": "T1556.001",
+              "name": "Domain Controller Authentication",
+              "rank": 3,
+              "score": 14.011803560749918
+            },
+            {
+              "attack_id": "T1556",
+              "name": "Modify Authentication Process",
+              "rank": 4,
+              "score": 11.20762938748392
+            },
+            {
+              "attack_id": "T1003.007",
+              "name": "Proc Filesystem",
+              "rank": 5,
+              "score": 10.423066192824361
+            }
+          ]
+        },
+        "hybrid": {
+          "target_rank": 1,
+          "query_and_ranking_ms": 14.73,
+          "candidates": [
+            {
+              "attack_id": "T1003.001",
+              "name": "LSASS Memory",
+              "rank": 1,
+              "score": 0.03278688524590164
+            },
+            {
+              "attack_id": "T1547.008",
+              "name": "LSASS Driver",
+              "rank": 2,
+              "score": 0.031754032258064516
+            },
+            {
+              "attack_id": "T1003.007",
+              "name": "Proc Filesystem",
+              "rank": 3,
+              "score": 0.03076923076923077
+            },
+            {
+              "attack_id": "T1003.005",
+              "name": "Cached Domain Credentials",
+              "rank": 4,
+              "score": 0.02919863597612958
+            },
+            {
+              "attack_id": "T1556",
+              "name": "Modify Authentication Process",
+              "rank": 5,
+              "score": 0.028612012987012988
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

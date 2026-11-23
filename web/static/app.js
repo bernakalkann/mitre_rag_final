@@ -13,6 +13,14 @@ const sourceInfo = {
   attack: { name: "MITRE ATT&CK", purpose: "Olay hangi tekniklerle ilişkili olabilir?", label: "TEKNİK" },
   nist: { name: "NIST CSF 2.0", purpose: "Hangi savunma başlıklarını inceleyebilirim?", label: "ALT KATEGORİ" },
 };
+const modeLabels = {
+  semantic: "Anlamsal arama", bm25: "Anahtar kelime (BM25)", hybrid: "Hibrit arama", rag: "Kaynaklı açıklama",
+};
+const scores = {
+  semantic: { label: "Benzerlik", detail: "Kosinüs benzerliği olay ile kaynak metni arasındaki anlamsal yakınlığı gösterir.", digits: 3 },
+  bm25: { label: "BM25 skoru", detail: "BM25, ortak terimlerin belge sıklığını ve belge uzunluğunu hesaba katar.", digits: 3 },
+  hybrid: { label: "RRF skoru", detail: "Hibrit arama, BM25 ve anlamsal aramadaki sıraları birleştirir.", digits: 5 },
+};
 const functions = {
   GV: "GOVERN", ID: "IDENTIFY", PR: "PROTECT", DE: "DETECT", RS: "RESPOND", RC: "RECOVER",
 };
@@ -197,13 +205,19 @@ byId("examples").addEventListener("change", (event) => {
   incident.focus();
 });
 
+function scoreInfo(kind) {
+  return scores[kind === "attack" ? lastResult.export.method : "semantic"] ?? scores.semantic;
+}
+
 function rowData(kind, item, index, total) {
   if (kind === "attack") {
     const tactics = [...new Set((item.tactics || []).map((value) => value.replaceAll("-", " ").replace(/\b\w/g, (c) => c.toUpperCase())))];
     const parent = item.parent_attack_id;
     return { kind, code: item.attack_id, title: item.name, rank: index + 1, total,
       score: item.score ?? item.retrieval_score, url: item.source_url, filterValues: tactics,
-      body: item.evidence_excerpt ?? item.excerpt, fields: [["Taktik", tactics.join(", ")], ["Üst teknik", parent]],
+      body: item.evidence_excerpt ?? item.excerpt,
+      fields: [["Taktik", tactics.join(", ")], ["Üst teknik", parent],
+        ["Anlamsal sıra", item.component_ranks?.semantic], ["BM25 sırası", item.component_ranks?.bm25]],
       subtitle: [tactics.join(", "), parent && `Üst teknik: ${parent}`].filter(Boolean).join(" · ") };
   }
   const fn = functions[item.id.slice(0, 2)] || item.function;
@@ -217,8 +231,8 @@ function rowKey(row) {
   return `${row.kind}:${row.code}`;
 }
 
-function scoreText(score) {
-  return Number.isFinite(score) ? score.toFixed(3) : "—";
+function scoreText(score, kind) {
+  return Number.isFinite(score) ? score.toFixed(scoreInfo(kind).digits) : "—";
 }
 
 function renderSource(kind, source) {
@@ -231,7 +245,7 @@ function renderSource(kind, source) {
   count.id = `${kind}-visible-count`;
   header.append(name, count);
   section.append(header);
-  if (kind === "nist" && lastResult.explanation) {
+  if (kind === "nist" && (lastResult.explanation || ["bm25", "hybrid"].includes(lastResult.export.method))) {
     section.append(element("p", "NIST sonuçları bağımsız anlamsal aramadan gelir.", "source-note"));
   }
 
@@ -249,8 +263,9 @@ function renderSource(kind, source) {
     const columns = element("div", undefined, "column-head");
     for (const title of ["Sıra", "Kod", "Ad"]) columns.append(element("span", title));
     const help = element("details", undefined, "score-help");
-    help.append(element("summary", "Benzerlik ⓘ"), element("p",
-      "Kosinüs benzerliği, olay metninin aday metnine anlamsal yakınlığıdır. Güven veya olasılık değildir. ATT&CK ve NIST skorları birbirleriyle karşılaştırılmaz."));
+    const score = scoreInfo(kind);
+    help.append(element("summary", score.label + " ⓘ"), element("p",
+      `${score.detail} Skoru yalnızca bu kaynak içindeki adayları sıralamak için kullanın.`));
     columns.append(help);
     section.append(columns);
     const list = element("ol", undefined, "candidate-list");
@@ -263,7 +278,7 @@ function renderSource(kind, source) {
       const title = element("span", row.title, "title");
       title.title = row.title;
       trigger.append(element("span", row.rank, "rank mono"), element("code", row.code, "code mono"),
-        title, element("span", scoreText(row.score), "score mono"));
+        title, element("span", scoreText(row.score, kind), "score mono"));
       if (row.subtitle) trigger.append(element("small", row.subtitle));
       rows.set(key, { row, li, trigger });
       buttons.push(trigger);
@@ -296,7 +311,7 @@ function renderEvidence(row) {
   const title = element("h3");
   title.append(element("code", row.code), document.createTextNode(" · " + row.title));
   panel.append(element("p", `${info.name} · ${info.label}`, "evidence-label"), title,
-    element("p", `Sıra ${row.rank} / ${row.total} · Benzerlik ${scoreText(row.score)}`, "evidence-meta"));
+    element("p", `Sıra ${row.rank} / ${row.total} · ${scoreInfo(row.kind).label} ${scoreText(row.score, row.kind)}`, "evidence-meta"));
   const fields = element("dl");
   for (const [label, value] of row.fields) {
     if (!value) continue;
@@ -531,7 +546,7 @@ function renderResults(data, requestedMode, k) {
   byId("source-preview").hidden = true;
   incident.rows = 3;
   incident.style.removeProperty("height");
-  const label = requestedMode === "rag" ? "Kaynaklı açıklama" : "Anlamsal arama";
+  const label = modeLabels[requestedMode];
   const elapsed = data.duration_ms < 100 ? "<0,1" : duration.format(data.duration_ms / 1000);
   byId("result-meta").textContent = `${label} · Kaynak başına en çok ${k} aday · ${elapsed} sn`;
   byId("analyzed-text").textContent = data.export.query;
