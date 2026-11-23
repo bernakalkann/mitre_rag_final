@@ -41,7 +41,8 @@ Zaman kalırsa reranking, örnek logların daha ayrıntılı analizi, gelişmiş
 Test ve gösterim için 11. haftadaki basit arayüzün ilk sürümü öne alınmıştır.
 **Kanıt Masası** web arayüzü ve Streamlit üzerinden ATT&CK için anlamsal arama,
 BM25, hibrit arama ve kaynaklı açıklama seçilebilir. İki arayüz aynı Python
-analiz servisini çağırır.
+analiz servisini çağırır. Kanıt Masası başlangıç ekranındaki örnek kartlar olay
+metnini forma yükler.
 
 Hazır indeks ve model önbelleği bulunan ortamda repo kökünden:
 

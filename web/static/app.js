@@ -102,7 +102,8 @@ function renderError(target, message, detail, retry = true) {
 function setBusy(busy) {
   running = busy;
   byId("submit").disabled = busy;
-  byId("examples").disabled = busy;
+  byId("examples").disabled = busy || !Object.keys(examples).length;
+  for (const card of byId("example-cards").children) card.disabled = busy;
   byId("limit").disabled = busy;
   for (const option of form.elements.mode) option.disabled = busy;
   incident.readOnly = busy;
@@ -195,15 +196,20 @@ incident.addEventListener("keydown", (event) => {
 
 byId("mode-options").addEventListener("change", updateModelWarning);
 byId("examples").addEventListener("change", (event) => {
-  const text = examples[event.target.value];
+  const label = event.target.value;
   event.target.value = "";
-  if (!text) return;
+  loadExample(label);
+});
+
+function loadExample(label) {
+  const text = examples[label];
+  if (running || !text) return;
   if (incident.value.trim() && incident.value !== text &&
       !window.confirm("Mevcut olay açıklaması örnekle değiştirilsin mi?")) return;
   incident.value = text;
   updateInput();
   incident.focus();
-});
+}
 
 function scoreInfo(kind) {
   return scores[kind === "attack" ? lastResult.export.method : "semantic"] ?? scores.semantic;
@@ -546,6 +552,7 @@ function renderResults(data, requestedMode, k) {
   byId("source-preview").hidden = true;
   incident.rows = 3;
   incident.style.removeProperty("height");
+  byId("workspace-empty").hidden = true;
   const label = modeLabels[requestedMode];
   const elapsed = data.duration_ms < 100 ? "<0,1" : duration.format(data.duration_ms / 1000);
   byId("result-meta").textContent = `${label} · Kaynak başına en çok ${k} aday · ${elapsed} sn`;
@@ -570,8 +577,23 @@ fetchJson("/api/examples").then((data) => {
   if (!byId("limit").matches(":focus") && byId("limit").selectedOptions[0].defaultSelected) {
     byId("limit").value = data.default_k;
   }
-  for (const label of Object.keys(examples)) byId("examples").add(new Option(label, label));
-}).catch(() => { byId("examples").disabled = true; });
+  for (const [label, text] of Object.entries(examples)) {
+    byId("examples").add(new Option(label, label));
+    const card = button(undefined, () => loadExample(label), "example-card");
+    const title = element("strong", label);
+    const arrow = element("span", "↗");
+    arrow.setAttribute("aria-hidden", "true");
+    title.append(arrow);
+    card.append(title, element("span", text));
+    card.disabled = running;
+    byId("example-cards").append(card);
+  }
+  byId("examples").disabled = running;
+  byId("examples-status").hidden = true;
+}).catch(() => {
+  byId("examples").disabled = true;
+  byId("examples-status").textContent = "Örnekler yüklenemedi. Olay açıklamanızı doğrudan yazabilirsiniz.";
+});
 
 fetchJson("/api/health").then((data) => {
   modelReady = data.ollama.model_ready;
