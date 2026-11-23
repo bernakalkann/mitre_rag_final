@@ -33,6 +33,7 @@ Zaman kalırsa reranking, örnek logların daha ayrıntılı analizi, gelişmiş
 | 6 | Ortam ve veri hazırlığını yapma | [Çalışan veri işleme adımı](docs/06_ortam_ve_veri.md) | Tamamlandı |
 | 7 | Embedding üretme ve benzerlik aramasını geliştirme | [Anlamsal arama modülü](docs/07_anlamsal_arama.md) ve [demo çıktıları](evidence/demo_summary.json) | Tamamlandı |
 | 8 | Aday tekniklerden temel yanıt akışını oluşturma | [İlk uçtan uca RAG demosu](docs/08_temel_rag.md) ve [gerçek çıktı](evidence/week08_rag_demo_tr.json) | Tamamlandı |
+| 9 | BM25 ile anahtar kelime araması | [BM25 arama notları](docs/09_10_bm25_ve_hibrit_arama.md) | Tamamlandı |
 
 ### Erken demo arayüzü
 
@@ -69,13 +70,12 @@ indeksi ilk aramada CPU üzerinde hazırlanır ve uygulama sürecinin belleğind
 tutulur. İki kaynakta sıralama kosinüs benzerliğiyle ayrı yapılır. Yerel LLM
 ATT&CK açıklaması üretir ve NIST adayları kendi kaynak metniyle
 gösterilir. JSON çıktısı NIST sürümünü, yerel katalog SHA-256 değerini, model
-revizyonunu ve benzerlik skorlarını içerir. 9. hafta BM25 çalışması beklemededir.
+revizyonunu ve benzerlik skorlarını içerir. 9. hafta BM25 modülü terminalde kullanılabilir.
 
 ## Sonraki görevler
 
 | Hafta | Planlanan çalışma |
 |---|---|
-| 9 | BM25 arama modülü |
 | 10 | Hibrit arama ve ilk karşılaştırmalar |
 | 11 | Yerel LLM ve kullanıcı arayüzü |
 | 12 | Doğruluğu kontrol edilmiş etiketli test senaryoları |

@@ -1,4 +1,5 @@
 """Token-aware Sentence Transformer indexing and cosine retrieval."""
+import hashlib
 import importlib.metadata
 import json
 from functools import lru_cache
@@ -8,8 +9,14 @@ from time import perf_counter
 import numpy as np
 
 from .data import read_records, sha256, write_json
+from .lexical import B, K1, BM25Index
 
 DEFAULT_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+SEARCH_METHODS = ("semantic", "bm25")
+SCORE_NOTICES = {
+    "semantic": "Cosine similarity is not a probability or a confirmed attack classification.",
+    "bm25": "BM25 measures lexical relevance. It is not a probability or a confirmed attack classification.",
+}
 
 
 def make_chunks(record, tokenizer, max_length, overlap=16):
@@ -131,21 +138,45 @@ def build_index(records_path, index_dir, model_id=DEFAULT_MODEL, revision=None, 
     return manifest
 
 
-def search(index_dir, query, top_k=5, offline=False):
-    if not query.strip():
-        raise ValueError("Query cannot be empty")
+@lru_cache(maxsize=2)
+def _read_bm25(index_dir, records_digest):
+    path = index_dir / "records.json"
+    contents = path.read_bytes()
+    if hashlib.sha256(contents).hexdigest() != records_digest:
+        raise ValueError("Index integrity check failed: " + path.name)
+    return BM25Index(json.loads(contents))
+
+
+def search(index_dir, query, top_k=5, offline=False, *, method="semantic"):
+    if not query.strip() or top_k < 1 or method not in SEARCH_METHODS:
+        raise ValueError("Provide a non-empty query, positive top_k and valid search method")
     index_dir = Path(index_dir).resolve()
-    manifest = json.loads((index_dir / "manifest.json").read_text())
-    for name, expected in manifest["artifacts"].items():
+    manifest = json.loads((index_dir / "manifest.json").read_text(encoding="utf-8"))
+    artifacts = manifest["artifacts"]
+    checked_artifacts = {"records.json": artifacts["records.json"]} if method == "bm25" else artifacts
+    for name, expected in checked_artifacts.items():
         if sha256(index_dir / name) != expected:
             raise ValueError("Index integrity check failed: " + name)
-    model = load_model(manifest["model_id"], manifest["model_revision"], offline)
-    if len(model.tokenizer.encode(query, verbose=False)) > model.max_seq_length:
-        raise ValueError("Query exceeds model token limit; shorten the incident description")
-    start = perf_counter()
-    vector = model.encode([query], convert_to_numpy=True, normalize_embeddings=True)[0]
-    vectors, chunks, records = _read_index(index_dir, tuple(sorted(manifest["artifacts"].items())))
-    hits = rank(vector, vectors, chunks, records, top_k)
-    return {"query": query, "results": hits, "query_and_ranking_seconds": perf_counter() - start,
+
+    if method == "bm25":
+        lexical = _read_bm25(index_dir, artifacts["records.json"])
+        start = perf_counter()
+        hits = lexical.rank(query, top_k)
+        parameters = {"k1": K1, "b": B}
+    else:
+        model = load_model(manifest["model_id"], manifest["model_revision"], offline)
+        if len(model.tokenizer.encode(query, verbose=False)) > model.max_seq_length:
+            raise ValueError("Query exceeds model token limit; shorten the incident description")
+        start = perf_counter()
+        hits = _semantic_rank(index_dir, artifacts, model, query, top_k)
+        parameters = {}
+    return {"query": query, "results": hits, "method": method, "parameters": parameters,
+            "query_and_ranking_seconds": perf_counter() - start,
             "timing_excludes_model_load": True, "index_manifest": manifest,
-            "notice": "Cosine similarity is not a probability or a confirmed attack classification."}
+            "notice": SCORE_NOTICES[method]}
+
+
+def _semantic_rank(index_dir, artifacts, model, query, top_k):
+    vector = model.encode([query], convert_to_numpy=True, normalize_embeddings=True)[0]
+    vectors, chunks, records = _read_index(index_dir, tuple(sorted(artifacts.items())))
+    return rank(vector, vectors, chunks, records, top_k)

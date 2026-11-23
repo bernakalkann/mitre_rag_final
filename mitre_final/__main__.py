@@ -9,7 +9,7 @@ from .data import prepare, sha256, write_json
 
 
 def main():
-    parser = argparse.ArgumentParser(description="MITRE-RAG capstone: weeks 1–8")
+    parser = argparse.ArgumentParser(description="MITRE-RAG capstone")
     commands = parser.add_subparsers(dest="command", required=True)
     download = commands.add_parser("download", help="Download the pinned reference release")
     download.add_argument("--output", default="data/raw/enterprise-attack.json")
@@ -29,6 +29,7 @@ def main():
     query.add_argument("--top-k", type=int, default=5)
     query.add_argument("--output", default=None)
     query.add_argument("--offline", action="store_true")
+    query.add_argument("--method", choices=("semantic", "bm25"), default="semantic")
     rag = commands.add_parser("rag", help="Retrieve ATT&CK sources and generate a checked local-model answer")
     rag.add_argument("query")
     rag.add_argument("--index", default="data/index")
@@ -63,7 +64,7 @@ def main():
         report = build_index(args.records, args.output, revision=args.revision, offline=args.offline)
     elif args.command == "search":
         from .search import search
-        report = search(args.index, args.query, args.top_k, args.offline)
+        report = search(args.index, args.query, args.top_k, args.offline, method=args.method)
         if args.output:
             write_json(args.output, report)
     else:
