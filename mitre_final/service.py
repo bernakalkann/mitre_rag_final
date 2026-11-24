@@ -37,10 +37,10 @@ def read_attack_manifest(index_dir=INDEX_DIR):
     return manifest if isinstance(manifest, dict) else {}
 
 
-def analyze(text, mode="semantic", k=DEFAULT_K, *, index_dir=INDEX_DIR):
+def analyze(text, mode="semantic", k=DEFAULT_K, *, index_dir=INDEX_DIR, attack_method="semantic"):
     if not text.strip():
         raise ValueError("Analiz için bir olay açıklaması yazın.")
-    if mode not in MODE_LABELS or not 1 <= k <= 10:
+    if mode not in MODE_LABELS or attack_method not in search.SEARCH_METHODS or not 1 <= k <= 10:
         raise ValueError("Analiz modu veya aday sayısı geçersiz.")
 
     started = monotonic()
@@ -56,7 +56,8 @@ def analyze(text, mode="semantic", k=DEFAULT_K, *, index_dir=INDEX_DIR):
 
         if mode == "rag":
             try:
-                attack_result = rag.run_rag(text, index_dir, k, offline=True)
+                options = {"method": attack_method} if attack_method != "semantic" else {}
+                attack_result = rag.run_rag(text, index_dir, k, offline=True, **options)
                 explanation = {"status": "ok", "text": attack_result["summary"],
                                "sources": attack_result["matches"],
                                "additional_data_needed": attack_result["additional_data_needed"],
@@ -66,7 +67,8 @@ def analyze(text, mode="semantic", k=DEFAULT_K, *, index_dir=INDEX_DIR):
 
         if attack_result is None:
             try:
-                method_options = {"method": mode} if mode in ("bm25", "hybrid") else {}
+                method = attack_method if mode == "rag" else mode
+                method_options = {"method": method} if method != "semantic" else {}
                 attack_result = search.search(index_dir, text, k, offline=True, **method_options)
             except SEARCH_ERRORS as exc:
                 errors["attack"] = str(exc)
@@ -82,6 +84,26 @@ def analyze(text, mode="semantic", k=DEFAULT_K, *, index_dir=INDEX_DIR):
     return {"attack": source_state(attack_items, errors.get("attack")),
             "nist": source_state(nist_items, errors.get("nist")),
             "explanation": explanation, "export": export, "duration_ms": round((monotonic() - started) * 1000)}
+
+
+def answer_question(incident, question, history, method="semantic", k=DEFAULT_K):
+    """Retrieve trusted local records for the case before answering a follow-up."""
+    result = analyze(incident, method, k)
+    sources = rag.build_sources(result["attack"]["items"])
+    nist_items = result["nist"]["items"]
+    if nist_items:
+        reference = result["export"]["nist_csf"]
+        sources.extend({"source_id": f"N{i}", "nist_id": item["id"], "name": item["category"],
+                        "excerpt": item["description"], "source_url": reference["source_url"]}
+                       for i, item in enumerate(nist_items, start=1))
+    if not sources:
+        raise rag.RagError("Bu olay için dayanak alınamadı. Olay metnini ve arama kaynaklarını kontrol edin.")
+    with _ANALYSIS_LOCK:
+        raw, generation = rag.LocalOllama().answer_question(incident, question, history, sources)
+    checked = rag.validate_answer(raw, sources)
+    return {"text": checked["summary"], "sources": checked["matches"],
+            "additional_data_needed": checked["additional_data_needed"],
+            "model": generation["model"]}
 
 
 def source_state(items, error):

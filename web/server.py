@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from mitre_final import service
+from mitre_final import rag, service
 
 STATIC = Path(__file__).resolve().parent / "static"
 
@@ -27,6 +27,20 @@ app.mount("/static", StaticFiles(directory=STATIC), name="static")
 class AnalysisRequest(BaseModel):
     text: str
     mode: Literal["semantic", "bm25", "hybrid", "rag"] = "semantic"
+    k: int = Field(default=service.DEFAULT_K, strict=True, ge=1, le=10)
+    attack_method: Literal["semantic", "bm25", "hybrid"] = "semantic"
+
+
+class ConversationTurn(BaseModel):
+    question: str = Field(min_length=1, max_length=500)
+    answer: str = Field(min_length=1, max_length=800)
+
+
+class QuestionRequest(BaseModel):
+    incident: str = Field(min_length=1, max_length=4000)
+    question: str = Field(min_length=1, max_length=500)
+    history: list[ConversationTurn] = Field(default_factory=list, max_length=3)
+    method: Literal["semantic", "bm25", "hybrid"] = "semantic"
     k: int = Field(default=service.DEFAULT_K, strict=True, ge=1, le=10)
 
 
@@ -49,4 +63,15 @@ def examples():
 def analyze(body: AnalysisRequest):
     if not body.text.strip():
         raise HTTPException(status_code=422, detail="Analiz için bir olay açıklaması yazın.")
-    return service.analyze(body.text, body.mode, body.k)
+    return service.analyze(body.text, body.mode, body.k, attack_method=body.attack_method)
+
+
+@app.post("/api/ask")
+def ask(body: QuestionRequest):
+    if not body.incident.strip() or not body.question.strip():
+        raise HTTPException(status_code=422, detail="Olay metni ve takip sorusu gerekli.")
+    try:
+        return service.answer_question(body.incident, body.question.strip(),
+                                       [turn.model_dump() for turn in body.history], body.method, body.k)
+    except rag.RagError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc

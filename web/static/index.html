@@ -3,130 +3,207 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MITRE-RAG · Olay analizi</title>
-  <link rel="stylesheet" href="/static/app.css?v=10">
+  <meta name="color-scheme" content="dark">
+  <title>MITRE-RAG · Analist asistanı</title>
+  <link rel="stylesheet" href="/static/app.css?v=chat-1">
   <link rel="stylesheet" href="/static/evidence-map.css">
-  <script src="/static/app.js?v=10" defer></script>
+  <script src="/static/app.js?v=chat-1" defer></script>
 </head>
 <body>
   <a id="skip-results" class="skip" href="#sonuclar" hidden>Sonuçlara atla</a>
   <header class="topbar">
     <div class="page topbar-inner">
-      <p class="wordmark"><strong>MITRE-RAG</strong><span>Olay analizi</span></p>
-      <p id="health" class="health">Kaynaklar kontrol ediliyor…</p>
+      <div class="wordmark">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <strong>MITRE<span class="brand-accent">-RAG</span></strong>
+        <span class="brand-divider">Olay inceleme</span>
+      </div>
+      <p id="health" class="health" role="status">Kaynaklar kontrol ediliyor…</p>
     </div>
   </header>
 
-  <main class="page">
-    <section id="composer" class="composer" aria-labelledby="composer-title">
-      <h1 id="composer-title">Olayı tanımlayın</h1>
-      <p id="composer-help" class="muted">Gözlediğiniz davranışı kendi cümlelerinizle yazın.</p>
-      <form id="analysis-form" novalidate>
-        <div class="input-area">
-          <label for="incident" class="sr-only">Olay açıklaması</label>
-          <textarea id="incident" name="text" rows="8" aria-describedby="composer-help" placeholder="Örn. Bir uç nokta alarmında beklenmedik PowerShell etkinliği görüldü…" autofocus></textarea>
-          <p id="input-error" class="field-error" hidden>Analiz için bir olay açıklaması yazın.</p>
-          <div class="input-footer">
-            <select id="examples" aria-label="Örnek olay yükle"><option value="">Örnek olay yükle</option></select>
-            <output id="char-count" for="incident">0 karakter</output>
-          </div>
+  <main class="page workbench">
+    <aside id="workspace-sidebar" class="workspace-sidebar" aria-label="Olaylar ve kanıtlar">
+      <section class="case-rail" aria-labelledby="cases-title">
+        <div class="rail-heading">
+          <h2 id="cases-title">İncelemeler</h2>
+          <button id="new-case" class="secondary" type="button"><span aria-hidden="true">+</span> Yeni sohbet</button>
         </div>
-        <div class="analysis-options">
-          <fieldset id="mode-options">
-            <legend>Analiz modu</legend>
-            <label class="mode"><input type="radio" name="mode" value="semantic" checked><span>Anlamsal arama<small>Benzer anlamdaki teknikleri bulur.</small></span></label>
-            <label class="mode"><input type="radio" name="mode" value="bm25"><span>Anahtar kelime (BM25)<small>Teknik adlarını ve ortak terimleri arar.</small></span></label>
-            <label class="mode"><input type="radio" name="mode" value="hybrid"><span>Hibrit arama<small>Anlamsal ve BM25 sıralarını birleştirir.</small></span></label>
-            <label class="mode"><input type="radio" name="mode" value="rag"><span>Kaynaklı açıklama<small>ATT&amp;CK kaynaklarına dayalı yerel model yorumu ekler.</small></span></label>
-          </fieldset>
-          <p id="model-warning" class="muted" hidden>Yerel modele ulaşılamıyor. Adaylar yine aranır.</p>
-          <div class="candidate-limit">
-            <label for="limit">Kaynak başına aday sayısı</label>
-            <select id="limit" name="k" aria-describedby="limit-help">
-              <option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option>
-              <option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
-            </select>
-            <p id="limit-help" class="muted">Seçilen yöntem ATT&amp;CK için geçerli. NIST anlamsal aranır.</p>
-          </div>
-        </div>
-        <div class="form-actions">
-          <button id="submit" type="submit" class="primary"><span id="spinner" class="spinner" hidden aria-hidden="true"></span><span id="submit-label">Analiz et</span></button>
-          <kbd class="shortcut" aria-hidden="true">Ctrl/⌘ + Enter</kbd>
-        </div>
-        <div id="analysis-status" class="status" role="status" aria-live="polite"></div>
-        <div id="analysis-error" class="error-panel" role="alert" hidden></div>
-      </form>
-
-    </section>
-
-    <section id="workspace-empty" class="workspace-empty" aria-labelledby="workspace-title">
-      <div class="workspace-heading">
-        <h2 id="workspace-title">Bir olayla başlayın</h2>
-        <p class="muted">Bir örnek seçerek olay metnini doldurun veya kendi gözleminizi yazın.</p>
-      </div>
-      <div class="starter">
-        <h3>Örnek olaylar</h3>
-        <div id="example-cards" class="example-cards"></div>
-        <p id="examples-status" class="muted" role="status">Örnekler yükleniyor…</p>
-      </div>
-      <div class="source-preview" aria-label="Analiz kaynakları">
-        <article class="source-attack">
-          <h3>MITRE ATT&amp;CK</h3>
-          <p>Teknik kodunu, kaynak metnini ve ilgili taktikleri inceleyin.</p>
-        </article>
-        <article class="source-nist">
-          <h3>NIST CSF 2.0</h3>
-          <p>Olayla ilişkili savunma ve risk yönetimi başlıklarını bulun.</p>
-        </article>
-      </div>
-    </section>
-
-    <section id="sonuclar" class="results" aria-labelledby="result-title" hidden>
-      <div class="results-top">
-        <h2 id="result-title" tabindex="-1">Sonuçlar</h2>
-        <p id="result-meta" class="muted"></p>
-        <a id="download" class="secondary" download="mitre_rag_analiz.json">JSON indir</a>
-      </div>
-      <div id="previous" class="previous" hidden></div>
-      <div id="result-content">
-        <div id="analyzed-incident" class="incident-record">
-          <div><strong>Analiz edilen olay</strong><span id="changed" class="muted" hidden>Metin değişti · sonuçlar önceki metne ait</span></div>
-          <blockquote id="analyzed-text" class="clamped"></blockquote>
-          <button id="expand-incident" type="button" class="text-button" aria-expanded="false" aria-controls="analyzed-text" hidden>Tamamını göster</button>
-        </div>
-        <section id="evidence-map" class="evidence-map" aria-labelledby="evidence-map-title" hidden>
-          <div class="evidence-map-header">
-            <h3 id="evidence-map-title">Kanıt haritası</h3>
-            <p class="muted">Her bağlantı bir arama adayını gösterir. Kanıtını okumak için adayı seçin.</p>
-          </div>
-          <div class="map-root"><a href="#analyzed-incident">Analiz edilen olay</a></div>
-          <div id="map-branches" class="map-branches"></div>
+        <section class="rail-history" aria-labelledby="history-title">
+          <h3 id="history-title">Geçmiş sohbetler</h3>
+          <p id="history-empty" class="muted">Henüz kaydedilmiş sohbet yok.</p>
+          <ul id="saved-chats" class="saved-chats"></ul>
+          <p id="history-note" class="muted">Sohbetler bu tarayıcıda saklanır.</p>
+          <p id="history-error" class="field-error" role="status" hidden></p>
         </section>
-        <div class="source-filters">
-          <section id="attack-filter" class="source-filter source-attack" aria-labelledby="attack-filter-title" hidden>
-            <div class="source-filter-heading">
-              <h3 id="attack-filter-title">MITRE taktikleri</h3>
-              <p id="attack-filter-status" role="status" class="muted"></p>
-            </div>
-            <div id="attack-filter-options" class="source-filter-options" role="group" aria-labelledby="attack-filter-title"></div>
-          </section>
-          <section id="nist-filter" class="source-filter source-nist" aria-labelledby="nist-filter-title" hidden>
-            <div class="source-filter-heading">
-              <h3 id="nist-filter-title">NIST işlevleri</h3>
-              <p id="nist-filter-status" role="status" class="muted"></p>
-            </div>
-            <div id="nist-filter-options" class="source-filter-options" role="group" aria-labelledby="nist-filter-title"></div>
+        <section class="rail-examples" aria-labelledby="examples-title">
+          <h3 id="examples-title">Örnek olaylar</h3>
+          <div id="example-cards" class="example-cards"></div>
+          <p id="examples-status" class="muted" role="status">Örnekler yükleniyor…</p>
+        </section>
+        <section id="case-context" class="rail-context" hidden aria-labelledby="context-title">
+          <h3 id="context-title">Açık olay</h3>
+          <p id="case-name"></p>
+          <button id="show-case" class="text-button" type="button">Olay dosyasına git <span aria-hidden="true">→</span></button>
+        </section>
+      </section>
+      <section class="evidence-rail" aria-labelledby="evidence-heading">
+        <div class="rail-heading"><h2 id="evidence-heading">Kanıt ve kaynaklar</h2></div>
+        <div id="source-preview" class="source-preview">
+          <article class="source-attack">
+            <h3>MITRE ATT&amp;CK</h3>
+            <p>Teknik kodu, taktik ve eşleşmenin dayandığı kaynak metni.</p>
+          </article>
+          <article class="source-nist">
+            <h3>NIST CSF 2.0</h3>
+            <p>Olayla ilişkili olabilecek izleme ve savunma başlıkları.</p>
+          </article>
+          <section class="evidence-hint">
+            <h3>Kaynağı incele</h3>
+            <p>Analizden sonra bir aday veya kaynak numarası seçtiğinde dayanak burada açılır.</p>
           </section>
         </div>
-        <div class="workspace-grid">
-          <div id="result-lists">
+        <div id="kanit-paneli" class="evidence" aria-label="Seçili adayın kanıtı"></div>
+      </section>
+    </aside>
+
+    <div class="main-center">
+      <header id="workspace-empty" class="workspace-heading">
+        <h1>Hangi olayı inceleyelim?</h1>
+        <p>Olayı veya alarmı anlat. Yerel analist, ilgili teknikleri ve savunma başlıklarını kaynaklarıyla gösterir.</p>
+      </header>
+      <section id="sonuclar" class="results" aria-labelledby="result-title" hidden>
+        <div class="results-top">
+          <div>
+            <h2 id="result-title" tabindex="-1">Olay incelemesi</h2>
+            <p id="result-meta" class="muted"></p>
+          </div>
+          <a id="download" class="secondary" download="mitre_rag_analiz.json">JSON indir</a>
+        </div>
+        <div id="result-content">
+          <div class="view-tabs" aria-label="İnceleme görünümü">
+            <button type="button" data-view="chat" aria-pressed="true" aria-controls="view-chat">Sohbet</button>
+            <button type="button" data-view="case" aria-pressed="false" aria-controls="view-case">Olay dosyası</button>
+            <button type="button" data-view="map" aria-pressed="false" aria-controls="view-map">Kanıt haritası</button>
+          </div>
+
+          <div id="view-chat">
+            <div class="chat-turn analyst-turn">
+              <h3>Sen</h3>
+              <p id="first-message" class="chat-text"></p>
+            </div>
             <section id="model-block" class="model-block" aria-labelledby="model-title" hidden></section>
+            <div id="chat-history"></div>
+          </div>
+
+          <div id="view-case" hidden>
+            <div id="analyzed-incident" class="incident-record">
+              <strong>Olay metni</strong>
+              <blockquote id="analyzed-text" class="clamped"></blockquote>
+              <button id="expand-incident" type="button" class="text-button" aria-expanded="false" aria-controls="analyzed-text" hidden>Tamamını göster</button>
+            </div>
+            <div class="source-filters">
+              <section id="attack-filter" class="source-filter source-attack" aria-labelledby="attack-filter-title" hidden>
+                <div class="source-filter-heading">
+                  <h3 id="attack-filter-title">MITRE taktikleri</h3>
+                  <p id="attack-filter-status" role="status" class="muted"></p>
+                </div>
+                <div id="attack-filter-options" class="source-filter-options" role="group" aria-labelledby="attack-filter-title"></div>
+              </section>
+              <section id="nist-filter" class="source-filter source-nist" aria-labelledby="nist-filter-title" hidden>
+                <div class="source-filter-heading">
+                  <h3 id="nist-filter-title">NIST işlevleri</h3>
+                  <p id="nist-filter-status" role="status" class="muted"></p>
+                </div>
+                <div id="nist-filter-options" class="source-filter-options" role="group" aria-labelledby="nist-filter-title"></div>
+              </section>
+            </div>
             <div id="source-groups"></div>
           </div>
-          <aside id="kanit-paneli" class="evidence" aria-label="Seçili adayın kanıtı"></aside>
+
+          <div id="view-map" hidden>
+            <section id="evidence-map" class="evidence-map" aria-labelledby="evidence-map-title">
+              <div class="evidence-map-header">
+                <h3 id="evidence-map-title">Kanıt haritası</h3>
+                <p class="muted">Kaynağı okumak için bir adayı seç. ATT&amp;CK ve NIST sonuçları olay metninden bağımsız aranır.</p>
+              </div>
+              <div class="map-root"><button id="map-case" type="button" class="secondary">Olay metni</button></div>
+              <div id="map-branches" class="map-branches"></div>
+              <p id="map-empty" class="muted" hidden>Haritada gösterilecek aday yok.</p>
+            </section>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+
+      <div id="pending-message" hidden></div>
+
+      <section class="prompt-section" aria-labelledby="prompts-title">
+        <h2 id="prompts-title">Hazır sorular</h2>
+        <div id="prompt-grid" class="prompt-grid"></div>
+      </section>
+
+      <section id="composer" class="composer" aria-label="Mesaj yaz">
+        <form id="analysis-form" novalidate>
+          <div class="input-area">
+            <label id="composer-label" class="sr-only" for="incident">Olay açıklaması</label>
+            <textarea id="incident" name="text" rows="2" maxlength="4000" aria-describedby="composer-help" placeholder="Bir olayı anlat veya alarm metnini yapıştır…"></textarea>
+            <p id="composer-help" class="sr-only">Gözlenen davranış, ilgili süreç veya alarm bağlamını yaz.</p>
+            <p id="input-error" class="field-error" hidden></p>
+          </div>
+
+          <div class="composer-toolbar">
+            <div class="analysis-options" id="mode-options">
+              <details class="settings">
+                <summary>Analiz ayarları</summary>
+                <div class="settings-content">
+                  <label class="search-option">ATT&amp;CK arama yöntemi
+                    <select id="mode" name="mode">
+                      <option value="hybrid" selected>Hibrit arama</option>
+                      <option value="semantic">Anlamsal arama</option>
+                      <option value="bm25">Anahtar kelime · BM25</option>
+                    </select>
+                  </label>
+                  <label class="model-option"><input type="checkbox" id="with-model" checked> Yerel modelle açıkla</label>
+                  <label class="candidate-limit" for="limit">Kaynak başına aday
+                    <select id="limit" name="k" aria-describedby="limit-help">
+                      <option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option>
+                      <option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
+                    </select>
+                  </label>
+                  <p id="limit-help" class="muted">NIST için anlamsal arama kullanılır.</p>
+                </div>
+              </details>
+            </div>
+            <span id="followup-context" class="muted" hidden>Olay bağlamında takip sorusu</span>
+            <div class="form-actions">
+              <kbd class="shortcut" aria-hidden="true">Enter ↵</kbd>
+              <button id="submit" type="submit" class="primary"><span id="spinner" class="spinner" hidden aria-hidden="true"></span><span id="submit-label">Gönder</span><span aria-hidden="true">↑</span></button>
+            </div>
+          </div>
+          <p id="model-warning" class="muted" hidden>Ollama şu an erişilemiyor. Olay analizinde adaylar yine gösterilebilir.</p>
+          <div id="analysis-status" class="status" role="status"></div>
+          <div id="analysis-error" class="error-panel" role="alert" hidden></div>
+        </form>
+      </section>
+
+      <section id="workflow" class="workflow" aria-labelledby="workflow-title">
+        <h2 id="workflow-title">MITRE-RAG nasıl kullanılır?</h2>
+        <ol>
+          <li>
+            <strong>Olayı gir</strong>
+            <span>Gözlenen davranışı veya alarm metnini yaz. Soldan bir örnek de seçebilirsin.</span>
+          </li>
+          <li>
+            <strong>Sonuçları incele</strong>
+            <span>Mesajı gönder. Olay Dosyası’nda ATT&amp;CK teknik adaylarını ve NIST savunma başlıklarını gör.</span>
+          </li>
+          <li>
+            <strong>Kaynağı aç, takip sorusu sor</strong>
+            <span>Kanıt Haritası’ndan bir aday seçip soldaki kaynağı oku. Sohbet’te “Hangi bilgi eksik?” diye sorabilirsin.</span>
+          </li>
+        </ol>
+      </section>
+    </div>
   </main>
 </body>
 </html>

@@ -6,12 +6,12 @@ const incident = byId("incident");
 const results = byId("sonuclar");
 const sourceGroups = byId("source-groups");
 const desktopEvidence = byId("kanit-paneli");
-const wide = matchMedia("(min-width: 1100px)");
+
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 const duration = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 1 });
 const sourceInfo = {
-  attack: { name: "MITRE ATT&CK", purpose: "Olay hangi tekniklerle ilişkili olabilir?", label: "TEKNİK" },
-  nist: { name: "NIST CSF 2.0", purpose: "Hangi savunma başlıklarını inceleyebilirim?", label: "ALT KATEGORİ" },
+  attack: { name: "MITRE ATT&CK", label: "TEKNİK" },
+  nist: { name: "NIST CSF 2.0", label: "ALT KATEGORİ" },
 };
 const modeLabels = {
   semantic: "Anlamsal arama", bm25: "Anahtar kelime (BM25)", hybrid: "Hibrit arama", rag: "Kaynaklı açıklama",
@@ -32,6 +32,24 @@ let lastResult = null;
 let selected = null;
 let running = false;
 let exportUrl = null;
+let caseLabel = "";
+let caseSettings = null;
+let conversation = [];
+let activeCitation = null;
+let activeChatId = null;
+const historyKey = "mitre-rag.chats.v1";
+const historyDate = new Intl.DateTimeFormat("tr-TR", {day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"});
+let savedChats = [];
+const initialPrompts = [
+  ["Hangi ATT&CK tekniğiyle ilişkili olabilir?", "Örnek PowerShell olayını yükle.", "PowerShell"],
+  ["Bu uyarıyı nasıl incelemeliyim?", "Örnek zamanlanmış görev olayını yükle.", "Zamanlanmış görev"],
+  ["Eldeki bilgi yeterli mi?", "Yetersiz bağlam örneğini yükle.", "Yetersiz bağlam"],
+];
+const followupPrompts = [
+  ["Neden bu teknik?", "Olay metnindeki dayanağı göster."],
+  ["Hangi bilgi eksik?", "Eşleşmeyi doğrulamak için gerekenleri açıkla."],
+  ["NIST hangi başlıkları öneriyor?", "Savunma ve izleme başlıklarını açıkla."],
+];
 const rows = new Map();
 const mapButtons = new Map();
 
@@ -71,21 +89,22 @@ async function fetchJson(url, options) {
   return data;
 }
 
-function mode() {
-  return form.elements.mode.value;
-}
-
 function updateModelWarning() {
-  byId("model-warning").hidden = mode() !== "rag" || modelReady !== false;
+  const needsModel = lastResult || byId("with-model").checked;
+  const warning = byId("model-warning");
+  warning.hidden = !needsModel || modelReady !== false;
+  warning.textContent = lastResult
+    ? "Takip soruları için yerel Ollama ve modelin çalışması gerekiyor."
+    : "Ollama şu an erişilemiyor. Analiz sırasında adaylar yine gösterilebilir.";
 }
 
 function updateInput() {
-  byId("char-count").textContent = `${Array.from(incident.value).length} karakter`;
-  if (lastResult) byId("changed").hidden = incident.value === lastResult.export.query;
-  if (!incident.value.trim()) return;
   incident.removeAttribute("aria-invalid");
   incident.setAttribute("aria-describedby", "composer-help");
   byId("input-error").hidden = true;
+  for (const card of byId("example-cards").children) {
+    card.setAttribute("aria-pressed", String(card.dataset.example === caseLabel));
+  }
 }
 
 function renderError(target, message, detail, retry = true) {
@@ -101,118 +120,339 @@ function renderError(target, message, detail, retry = true) {
 
 function setBusy(busy) {
   running = busy;
-  byId("submit").disabled = busy;
-  byId("examples").disabled = busy || !Object.keys(examples).length;
-  for (const card of byId("example-cards").children) card.disabled = busy;
-  byId("limit").disabled = busy;
-  for (const option of form.elements.mode) option.disabled = busy;
+  for (const id of ["submit", "mode", "limit", "with-model", "new-case"]) byId(id).disabled = busy;
+  for (const control of document.querySelectorAll(".example-card, .prompt-button, #saved-chats button")) {
+    control.disabled = busy;
+  }
   incident.readOnly = busy;
   byId("spinner").hidden = !busy;
-  byId("submit-label").textContent = busy ? "Analiz ediliyor…" : "Analiz et";
-  results.setAttribute("aria-busy", String(busy));
-  byId("result-content").inert = busy;
-  byId("previous").hidden = !busy || !lastResult;
-  byId("previous").textContent = busy ? "Önceki sonuçlar · yeni analiz sürüyor" : "";
+  byId("submit-label").textContent = busy ? "Yanıt hazırlanıyor" : "Gönder";
+  form.setAttribute("aria-busy", String(busy));
 }
 
-function showPrevious() {
-  if (!lastResult) return;
-  byId("previous").textContent = "Önceki analiz";
-  byId("previous").hidden = false;
-}
-
-form.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  if (running) return;
-
-  const text = incident.value;
-  if (!text.trim()) {
-    incident.setAttribute("aria-invalid", "true");
-    incident.setAttribute("aria-describedby", "composer-help input-error");
-    byId("input-error").hidden = false;
-    incident.focus();
-    return;
+function showView(name) {
+  for (const control of document.querySelectorAll("[data-view]")) {
+    const active = control.dataset.view === name;
+    control.setAttribute("aria-pressed", String(active));
+    byId("view-" + control.dataset.view).hidden = !active;
   }
-  const requestedMode = mode();
-  const k = Number(byId("limit").value);
-  byId("analysis-error").hidden = true;
-  setBusy(true);
-  const started = performance.now();
-  const progress = () => {
-    const elapsed = Math.floor((performance.now() - started) / 1000);
-    byId("analysis-status").textContent = `ATT&CK ve NIST aranıyor · ${elapsed} sn`
-      + (requestedMode === "rag" ? " · Yerel model yorumu daha uzun sürebilir." : "");
+  if (name === "case") {
+    clampToggle(byId("analyzed-text"), byId("expand-incident"), 3);
+  }
+}
+
+function setConversationMode(ready) {
+  incident.maxLength = ready ? 500 : 4000;
+  incident.placeholder = ready ? "Bu olay hakkında bir takip sorusu yaz…" :
+    "Bir olayı anlat veya alarm metnini yapıştır…";
+  byId("composer-label").textContent = ready ? "Takip sorusu" : "Olay açıklaması";
+  byId("mode-options").hidden = ready;
+  byId("followup-context").hidden = !ready;
+  byId("case-context").hidden = !ready;
+  byId("workflow").hidden = ready;
+  byId("source-preview").hidden = ready;
+  renderPrompts(ready);
+  updateModelWarning();
+}
+
+function renderPrompts(ready) {
+  const prompts = ready ? followupPrompts : initialPrompts;
+  byId("prompt-grid").replaceChildren(...prompts.map(([question, description, sample]) => {
+    const control = button(undefined, () => {
+      if (ready) {
+        incident.value = question;
+        updateInput();
+        incident.focus();
+      } else {
+        loadExample(sample);
+      }
+    }, "prompt-button");
+    control.disabled = running || (!ready && !examples[sample]);
+    control.append(element("strong", question), element("span", description));
+    return control;
+  }));
+}
+
+function readChats() {
+  const stored = JSON.parse(localStorage.getItem(historyKey) ?? "[]");
+  if (!Array.isArray(stored)) throw new Error("Geçersiz sohbet geçmişi");
+  return stored;
+}
+
+function showHistoryError(message) {
+  const notice = byId("history-error");
+  notice.textContent = message;
+  notice.hidden = !message;
+}
+
+function renderSavedChats() {
+  const list = byId("saved-chats");
+  list.replaceChildren(...savedChats.map(chat => {
+    const item = element("li");
+    const open = button(undefined, () => openSavedChat(chat), "saved-chat");
+    if (chat.id === activeChatId) open.setAttribute("aria-current", "true");
+    open.append(element("strong", chat.title), element("span", historyDate.format(chat.updatedAt)));
+    const remove = button("Sil", () => removeSavedChat(chat), "remove-chat");
+    remove.setAttribute("aria-label", `${chat.title} sohbetini sil`);
+    open.disabled = remove.disabled = running;
+    item.append(open, remove);
+    return item;
+  }));
+  byId("history-empty").hidden = Boolean(savedChats.length);
+}
+
+function chatTitle() {
+  const text = caseLabel || lastResult.export.query.replace(/\s+/g, " ");
+  return text.length > 56 ? text.slice(0, 55) + "…" : text;
+}
+
+function saveChat() {
+  activeChatId ??= crypto.randomUUID();
+  const chat = {
+    id: activeChatId, title: chatTitle(),
+    label: caseLabel, updatedAt: Date.now(),
+    settings: caseSettings, result: lastResult, conversation,
   };
-  progress();
-  const timer = setInterval(progress, 1000);
-  let data;
+  savedChats = [chat, ...savedChats.filter(item => item.id !== chat.id)];
   try {
-    data = await fetchJson("/api/analyze", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, mode: requestedMode, k }),
-    });
-  } catch (error) {
-    renderError(byId("analysis-error"), error instanceof TypeError
-      ? "Analiz sunucusuna ulaşılamadı. Sunucunun çalıştığını kontrol edin." : "Analiz tamamlanamadı.", error.message);
-  } finally {
-    clearInterval(timer);
-    setBusy(false);
+    const stored = readChats().filter(item => item.id !== chat.id);
+    localStorage.setItem(historyKey, JSON.stringify([chat, ...stored]));
+    savedChats = [chat, ...stored];
+    showHistoryError("");
+  } catch {
+    showHistoryError("Sohbet bu tarayıcıya kaydedilemedi. Bu sayfa açıkken geçmişte görünecek.");
   }
+  renderSavedChats();
+}
 
-  if (!data?.export) {
-    if (data) renderError(byId("analysis-error"), "Analiz tamamlanamadı.",
-      [data.attack.error, data.nist.error].filter(Boolean).join(" · "));
-    byId("analysis-status").textContent = "";
-    showPrevious();
+function openSavedChat(chat) {
+  if (running || chat.id === activeChatId) return;
+  resetCase(false);
+  activeChatId = chat.id;
+  caseLabel = chat.label;
+  caseSettings = chat.settings;
+  lastResult = chat.result;
+  conversation = chat.conversation.slice();
+  renderResults(lastResult, caseSettings.method, caseSettings.k);
+  for (const {question, answer} of conversation) renderFollowup(question, answer, false);
+  setConversationMode(true);
+  updateInput();
+  renderSavedChats();
+  byId("result-title").focus({preventScroll: true});
+  nudgeTo(byId("result-title"));
+}
+
+function removeSavedChat(chat) {
+  if (running || !window.confirm("Bu sohbet bu tarayıcıdaki geçmişten silinsin mi?")) return;
+  try {
+    const stored = readChats().filter(item => item.id !== chat.id);
+    localStorage.setItem(historyKey, JSON.stringify(stored));
+    showHistoryError("");
+  } catch {
+    showHistoryError("Sohbet geçmişten silinemedi.");
     return;
   }
-
-  lastResult = data;
-  renderResults(data, requestedMode, k);
-  const status = [data.attack, data.nist, data.explanation].some((source) => source?.status === "error")
-    ? "Analiz kısmen tamamlandı" : "Analiz tamamlandı";
-  byId("analysis-status").textContent = `${status} · ATT&CK ${data.attack.items.length} aday · NIST ${data.nist.items.length} aday`;
-  results.dispatchEvent(new Event("analysisCompleted"));
-});
-
-results.addEventListener("analysisCompleted", () => {
-  const heading = byId("result-title");
-  const top = heading.parentElement;
-  top.classList.remove("flash");
-  requestAnimationFrame(() => {
-    top.classList.add("flash");
-    heading.scrollIntoView({ block: "start", behavior: reducedMotion.matches ? "auto" : "smooth" });
-    heading.focus({ preventScroll: true });
-  });
-});
-
-incident.addEventListener("input", updateInput);
-incident.addEventListener("keydown", (event) => {
-  if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
-    event.preventDefault();
-    form.requestSubmit();
+  savedChats = savedChats.filter(item => item.id !== chat.id);
+  if (activeChatId === chat.id) resetCase();
+  else {
+    renderSavedChats();
+    byId("new-case").focus();
   }
-});
+}
 
-byId("mode-options").addEventListener("change", updateModelWarning);
-byId("examples").addEventListener("change", (event) => {
-  const label = event.target.value;
-  event.target.value = "";
-  loadExample(label);
-});
+function resetCase(focus = true) {
+  if (running) return;
+  activeChatId = null;
+  lastResult = null;
+  caseLabel = "";
+  caseSettings = null;
+  conversation = [];
+  activeCitation = null;
+  selected = null;
+  rows.clear();
+  mapButtons.clear();
+  desktopEvidence.replaceChildren();
+  byId("chat-history").replaceChildren();
+  byId("model-block").replaceChildren();
+  byId("result-title").textContent = "Olay incelemesi";
+  byId("analysis-error").hidden = true;
+  byId("analysis-status").textContent = "";
+  byId("skip-results").hidden = true;
+  byId("workspace-empty").hidden = false;
+  results.hidden = true;
+  incident.value = "";
+  if (exportUrl) URL.revokeObjectURL(exportUrl);
+  exportUrl = null;
+  updateInput();
+  setConversationMode(false);
+  renderSavedChats();
+  if (focus) incident.focus();
+}
 
 function loadExample(label) {
   const text = examples[label];
   if (running || !text) return;
-  if (incident.value.trim() && incident.value !== text &&
-      !window.confirm("Mevcut olay açıklaması örnekle değiştirilsin mi?")) return;
+  if (lastResult) resetCase(false);
+  caseLabel = label;
   incident.value = text;
   updateInput();
   incident.focus();
 }
 
+function nudgeTo(element) {
+  const bounds = element.getBoundingClientRect();
+  const topbar = document.querySelector(".topbar").getBoundingClientRect();
+  if (bounds.top < Math.max(topbar.bottom, 0) || bounds.bottom > window.innerHeight) {
+    element.scrollIntoView({block: "start", behavior: reducedMotion.matches ? "auto" : "smooth"});
+  }
+}
+
+function updateExport() {
+  if (exportUrl) URL.revokeObjectURL(exportUrl);
+  const payload = conversation.length ? {...lastResult.export, conversation} : lastResult.export;
+  exportUrl = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], {type: "application/json"}));
+  byId("download").href = exportUrl;
+}
+
+function makeTurn(label, text, kind) {
+  const turn = element("article", undefined, `chat-turn ${kind}-turn`);
+  turn.append(element("h3", label), element("p", text, "chat-text"));
+  return turn;
+}
+
+function appendSources(panel, sources, needed) {
+  if (sources.length) {
+    const citations = element("ul", undefined, "model-citations");
+    for (const [index, source] of sources.entries()) {
+      const id = source.attack_id ?? source.nist_id;
+      const key = source.attack_id ? `attack:${id}` : `nist:${id}`;
+      const label = `[${index + 1}] ${id}`;
+      const control = rows.has(key)
+        ? button(label, () => revealEvidence(key, true, source), "mono")
+        : officialLink(source.source_url, label);
+      if (!control) continue;
+      const item = element("li");
+      item.append(control);
+      citations.append(item);
+    }
+    panel.append(element("h4", "Yanıtın kaynakları"), citations);
+  }
+  if (needed?.length) {
+    const list = element("ul", undefined, "missing-context");
+    for (const item of needed) list.append(element("li", item));
+    panel.append(element("h4", "İnceleme için ek bilgiler"), list);
+  }
+}
+
+function renderFollowup(question, answer, focus = true) {
+  const history = byId("chat-history");
+  const response = makeTurn("MITRE-RAG", answer.text, "assistant");
+  appendSources(response, answer.sources, answer.additional_data_needed);
+  history.append(makeTurn("Sen", question, "analyst"), response);
+  if (focus) {
+    response.tabIndex = -1;
+    response.focus({preventScroll: true});
+    nudgeTo(response);
+  }
+}
+
+async function submitAnalysis(text) {
+  const method = byId("mode").value;
+  const k = Number(byId("limit").value);
+  const requestedMode = byId("with-model").checked ? "rag" : method;
+  const data = await fetchJson("/api/analyze", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({text, mode: requestedMode, k, attack_method: method}),
+  });
+  if (!data.export) {
+    throw new Error([data.attack.error, data.nist.error].filter(Boolean).join(" · "));
+  }
+  caseSettings = {method, k};
+  lastResult = data;
+  renderResults(data, method, k);
+  incident.value = "";
+  setConversationMode(true);
+  saveChat();
+  byId("result-title").focus({preventScroll: true});
+  nudgeTo(byId("result-title"));
+}
+
+async function submitFollowup(question) {
+  const history = conversation.slice(-3).map(({question, answer}) => ({
+    question, answer: answer.text.slice(0, 800),
+  }));
+  const answer = await fetchJson("/api/ask", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({incident: lastResult.export.query, question, history, ...caseSettings}),
+  });
+  conversation.push({question, answer});
+  incident.value = "";
+  showView("chat");
+  renderFollowup(question, answer);
+  updateExport();
+  saveChat();
+}
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (running) return;
+  const text = incident.value.trim();
+  if (!text) {
+    incident.setAttribute("aria-invalid", "true");
+    incident.setAttribute("aria-describedby", "composer-help input-error");
+    byId("input-error").textContent = lastResult ? "Bir takip sorusu yaz." : "Analiz için bir olay açıklaması yaz.";
+    byId("input-error").hidden = false;
+    incident.focus();
+    return;
+  }
+
+  const followup = Boolean(lastResult);
+  byId("analysis-error").hidden = true;
+  setBusy(true);
+  const pending = byId("pending-message");
+  pending.replaceChildren(makeTurn("Sen", text, "analyst"));
+  pending.hidden = false;
+  if (followup) showView("chat");
+  else byId("workspace-empty").hidden = true;
+  const status = byId("analysis-status");
+  status.textContent = followup || byId("with-model").checked
+    ? "Kaynaklar inceleniyor, yerel model yanıtı hazırlıyor…"
+    : "ATT&CK ve NIST kaynakları aranıyor…";
+  try {
+    if (followup) await submitFollowup(text);
+    else await submitAnalysis(text);
+  } catch (error) {
+    renderError(byId("analysis-error"), followup ? "Takip sorusu yanıtlanamadı." : "Olay analizi tamamlanamadı.", error.message);
+  } finally {
+    pending.replaceChildren();
+    pending.hidden = true;
+    byId("workspace-empty").hidden = Boolean(lastResult);
+    status.textContent = "";
+    setBusy(false);
+  }
+});
+
+incident.addEventListener("input", () => {
+  if (!lastResult) caseLabel = "";
+  updateInput();
+});
+incident.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && (!event.shiftKey || event.ctrlKey || event.metaKey) && !event.isComposing) {
+    event.preventDefault();
+    form.requestSubmit();
+  }
+});
+byId("with-model").addEventListener("change", updateModelWarning);
+byId("new-case").addEventListener("click", () => resetCase());
+byId("show-case").addEventListener("click", () => showView("case"));
+byId("map-case").addEventListener("click", () => showView("case"));
+for (const control of document.querySelectorAll("[data-view]")) {
+  control.addEventListener("click", () => showView(control.dataset.view));
+}
+renderPrompts(false);
+
 function scoreInfo(kind) {
-  return scores[kind === "attack" ? lastResult.export.method : "semantic"] ?? scores.semantic;
+  return scores[kind === "attack" ? (lastResult.export.method ?? lastResult.export.retrieval?.method) : "semantic"] ?? scores.semantic;
 }
 
 function rowData(kind, item, index, total) {
@@ -246,7 +486,7 @@ function renderSource(kind, source) {
   const section = element("section", undefined, `source-section source-${kind}`);
   const header = element("div", undefined, "source-title");
   const name = element("div");
-  name.append(element("h3", info.name), element("p", info.purpose));
+  name.append(element("h3", info.name), element("p", kind === "attack" ? "Teknik adayları" : "Savunma başlıkları"));
   const count = element("span", `${source.items.length} aday`, "count mono");
   count.id = `${kind}-visible-count`;
   header.append(name, count);
@@ -267,7 +507,7 @@ function renderSource(kind, source) {
       element("p", "Olayı somut davranışlarla yazmayı deneyin: süreç, komut veya etkilenen sistem.", "muted"));
   } else {
     const columns = element("div", undefined, "column-head");
-    for (const title of ["Sıra", "Kod", "Ad"]) columns.append(element("span", title));
+    for (const title of ["#", "Kod", "Aday"]) columns.append(element("span", title));
     const help = element("details", undefined, "score-help");
     const score = scoreInfo(kind);
     help.append(element("summary", score.label + " ⓘ"), element("p",
@@ -280,7 +520,7 @@ function renderSource(kind, source) {
       const row = rowData(kind, item, index, source.items.length);
       const key = rowKey(row);
       const li = element("li");
-      const trigger = button(undefined, () => selectRow(key, true), "candidate");
+      const trigger = button(undefined, () => revealEvidence(key), "candidate");
       const title = element("span", row.title, "title");
       title.title = row.title;
       trigger.append(element("span", row.rank, "rank mono"), element("code", row.code, "code mono"),
@@ -305,7 +545,7 @@ function renderSource(kind, source) {
 }
 
 function copyCode(code, status) {
-  navigator.clipboard.writeText(code).then(() => {
+  Promise.resolve().then(() => navigator.clipboard.writeText(code)).then(() => {
     status.textContent = "Kopyalandı";
     setTimeout(() => { status.textContent = ""; }, 2000);
   }).catch(() => { status.textContent = "Kopyalanamadı"; });
@@ -341,7 +581,8 @@ function renderEvidence(row) {
     panel.append(source);
   }
 
-  const match = row.kind === "attack" && lastResult.explanation?.sources.find((item) => item.attack_id === row.code);
+  const match = activeCitation ?? (row.kind === "attack"
+    ? lastResult.explanation?.sources.find((item) => item.attack_id === row.code) : null);
   if (match) {
     const comment = element("section", undefined, "candidate-comment");
     comment.append(element("h4", "Modelin bu aday için açıklaması"), element("p", match.explanation));
@@ -361,7 +602,8 @@ function renderEvidenceMap() {
   const branches = byId("map-branches");
   mapButtons.clear();
   branches.replaceChildren();
-  map.hidden = rows.size === 0;
+  byId("map-empty").hidden = rows.size !== 0;
+  map.querySelector(".map-root").hidden = rows.size === 0;
 
   for (const [kind, source] of Object.entries(sourceInfo)) {
     const candidates = Array.from(rows).filter(([, entry]) => entry.row.kind === kind);
@@ -372,19 +614,7 @@ function renderEvidenceMap() {
     const list = element("ul", undefined, "map-nodes");
     list.setAttribute("aria-label", source.name + " adayları");
     for (const [key, { row }] of candidates) {
-      const node = button(undefined, () => {
-        selectRow(key);
-        const panel = wide.matches ? desktopEvidence : rows.get(key).li.querySelector(".evidence-inline");
-        const title = panel?.querySelector("h3");
-        if (!title) return;
-        const bounds = title.getBoundingClientRect();
-        // Move focus only when we need to reveal evidence outside the viewport.
-        if (bounds.top < 100 || bounds.bottom > window.innerHeight) {
-          title.tabIndex = -1;
-          title.scrollIntoView({ block: "center", behavior: reducedMotion.matches ? "auto" : "smooth" });
-          title.focus({ preventScroll: true });
-        }
-      }, "map-node");
+      const node = button(undefined, () => revealEvidence(key), "map-node");
       node.setAttribute("aria-label", `${source.name} · ${row.code} · ${row.title}`);
       node.append(element("code", row.code), element("span", row.title));
       mapButtons.set(key, node);
@@ -420,7 +650,7 @@ function applySourceFilter(kind, value) {
   byId(`${kind}-visible-count`).textContent = count;
   byId(`${kind}-filter-status`).textContent = `${count} gösteriliyor`;
   const current = rows.get(selected);
-  if (current?.row.kind === kind && current.li.hidden) selectRow(wide.matches ? firstVisible : null);
+  if (current?.row.kind === kind && current.li.hidden) selectRow(firstVisible);
 }
 
 function renderSourceFilter(kind) {
@@ -446,41 +676,21 @@ function renderSourceFilter(kind) {
   applySourceFilter(kind, null);
 }
 
-function selectRow(key, toggle = false) {
-  const entryToSelect = rows.get(key);
-  if (entryToSelect?.li.hidden) applySourceFilter(entryToSelect.row.kind, null);
-  selected = !wide.matches && toggle && selected === key ? null : key;
+function selectRow(key, citation = null) {
+  const entry = rows.get(key);
+  if (entry?.li.hidden) applySourceFilter(entry.row.kind, null);
+  selected = key;
+  activeCitation = citation;
   for (const [id, node] of mapButtons) {
     node.setAttribute("aria-pressed", String(id === selected));
-    if (wide.matches) node.setAttribute("aria-controls", "kanit-paneli");
-    else node.removeAttribute("aria-controls");
+    node.setAttribute("aria-controls", "kanit-paneli");
   }
-  desktopEvidence.replaceChildren();
-  for (const [id, entry] of rows) {
-    entry.li.querySelector(".evidence-inline")?.remove();
-    entry.trigger.removeAttribute("aria-pressed");
-    entry.trigger.removeAttribute("aria-expanded");
-    if (wide.matches) {
-      entry.trigger.setAttribute("aria-pressed", String(id === selected));
-      entry.trigger.setAttribute("aria-controls", "kanit-paneli");
-    } else {
-      entry.trigger.setAttribute("aria-expanded", String(id === selected));
-      entry.trigger.removeAttribute("aria-controls");
-    }
+  for (const [id, {trigger}] of rows) {
+    trigger.setAttribute("aria-pressed", String(id === selected));
+    trigger.setAttribute("aria-controls", "kanit-paneli");
   }
-  const entry = rows.get(selected);
-  if (!entry) return;
-  const panel = renderEvidence(entry.row);
-  if (wide.matches) {
-    desktopEvidence.append(panel);
-    desktopEvidence.scrollTop = 0;
-  } else {
-    panel.classList.add("evidence-inline");
-    panel.id = "satir-kaniti";
-    entry.trigger.setAttribute("aria-controls", panel.id);
-    mapButtons.get(selected)?.setAttribute("aria-controls", panel.id);
-    entry.li.append(panel);
-  }
+  desktopEvidence.replaceChildren(entry
+    ? renderEvidence(entry.row) : element("p", "Bu olayda gösterilecek aday yok.", "evidence-placeholder"));
 }
 
 function clampToggle(text, control, lines) {
@@ -498,49 +708,53 @@ function clampToggle(text, control, lines) {
   };
 }
 
-function renderModel(explanation) {
-  const block = byId("model-block");
-  block.replaceChildren();
-  block.hidden = !explanation;
-  if (!explanation) return;
-
-  const title = element("h3", `Model yorumu · ${modelName} (yerel, Ollama)`);
-  title.id = "model-title";
-  block.append(title);
-  if (explanation.status === "error") {
-    const failure = element("div");
-    renderError(failure, "Model yorumu üretilemedi. Aday sonuçları kullanılabilir.", explanation.error);
-    block.append(failure);
-    return;
-  }
-
-  const text = element("p", explanation.text, "model-text");
-  text.id = "model-text";
-  const expand = button("Tamamını göster", () => {});
-  expand.setAttribute("aria-controls", text.id);
-  block.append(element("p", "Yerel modelin ATT&CK kaynaklarına dayalı yorumu.", "muted"), text, expand);
-  clampToggle(text, expand, 8);
-
-  if (explanation.additional_data_needed?.length) {
-    const extra = element("ul");
-    for (const item of explanation.additional_data_needed) extra.append(element("li", item));
-    block.append(element("p", "İnceleme için ek bilgiler", "muted"), extra);
-  }
-  if (explanation.sources.length) {
-    const citations = element("p");
-    citations.append(element("span", "Dayandığı kaynaklar: ", "muted"));
-    for (const source of explanation.sources) {
-      const key = `attack:${source.attack_id}`;
-      const control = rows.has(key)
-        ? button(source.attack_id, () => selectRow(key), "text-button mono")
-        : officialLink(source.source_url, source.attack_id);
-      if (control) citations.append(control);
+function revealEvidence(key, moveFocus = false, citation = null) {
+  selectRow(key, citation);
+  const title = desktopEvidence.querySelector("h3");
+  if (!title) return;
+  const sidebar = byId("workspace-sidebar");
+  if (getComputedStyle(sidebar).position === "sticky") {
+    const panelTop = desktopEvidence.getBoundingClientRect().top;
+    const bounds = sidebar.getBoundingClientRect();
+    const titleBottom = title.getBoundingClientRect().bottom;
+    if (panelTop < bounds.top || titleBottom > bounds.bottom - 18) {
+      sidebar.scrollBy({top: panelTop - bounds.top - 8, behavior: reducedMotion.matches ? "auto" : "smooth"});
     }
-    block.append(citations);
+  } else {
+    nudgeTo(title);
+  }
+  if (moveFocus) {
+    title.tabIndex = -1;
+    title.focus({preventScroll: true});
   }
 }
 
-function renderResults(data, requestedMode, k) {
+function renderModel(explanation, data) {
+  const block = byId("model-block");
+  block.replaceChildren();
+  block.hidden = false;
+  const header = element("header", undefined, "model-heading");
+  const title = element("h3", "MITRE-RAG");
+  title.id = "model-title";
+  const label = explanation?.status === "ok" ? `${modelName} · Ollama` : "Arama sonuçları";
+  header.append(title, element("p", label, "model-runtime mono"));
+  block.append(header);
+  if (explanation?.status !== "ok") {
+    const summary = `ATT&CK için ${data.attack.items.length}, NIST için ${data.nist.items.length} aday bulundu.`;
+    block.append(element("p", summary), button("Adayları incele →", () => showView("case")));
+    if (explanation?.status === "error") {
+      const failure = element("div", undefined, "model-failure");
+      renderError(failure, "Yerel model açıklaması alınamadı.", explanation.error, false);
+      block.append(failure);
+    }
+    return;
+  }
+  block.append(element("p", explanation.text, "model-text"));
+  appendSources(block, explanation.sources, explanation.additional_data_needed);
+  block.append(button("Olay dosyasını aç →", () => showView("case")));
+}
+
+function renderResults(data, method, k) {
   rows.clear();
   sourceGroups.replaceChildren(renderSource("attack", data.attack), renderSource("nist", data.nist));
   renderEvidenceMap();
@@ -548,51 +762,51 @@ function renderResults(data, requestedMode, k) {
   renderSourceFilter("nist");
   results.hidden = false;
   byId("skip-results").hidden = false;
-  byId("composer").classList.add("compact");
-  byId("source-preview").hidden = true;
-  incident.rows = 3;
-  incident.style.removeProperty("height");
   byId("workspace-empty").hidden = true;
-  const label = modeLabels[requestedMode];
   const elapsed = data.duration_ms < 100 ? "<0,1" : duration.format(data.duration_ms / 1000);
-  byId("result-meta").textContent = `${label} · Kaynak başına en çok ${k} aday · ${elapsed} sn`;
+  byId("result-meta").textContent = `${modeLabels[method]} · Kaynak başına en çok ${k} aday · ${elapsed} sn`;
+  const title = chatTitle();
+  byId("case-name").textContent = title;
+  byId("result-title").textContent = title;
+  byId("first-message").textContent = data.export.query;
   byId("analyzed-text").textContent = data.export.query;
-  clampToggle(byId("analyzed-text"), byId("expand-incident"), 3);
-  updateInput();
-  selectRow(wide.matches ? (rows.keys().next().value ?? null) : null);
-  renderModel(data.explanation);
-  if (exportUrl) URL.revokeObjectURL(exportUrl);
-  exportUrl = URL.createObjectURL(new Blob([JSON.stringify(data.export, null, 2)], { type: "application/json" }));
-  byId("download").href = exportUrl;
+  showView("chat");
+  selectRow(rows.keys().next().value ?? null);
+  renderModel(data.explanation, data);
+  updateExport();
 }
 
-wide.addEventListener("change", () => {
-  if (!lastResult) return;
-  const firstVisible = [...rows].find(([, entry]) => !entry.li.hidden)?.[0] ?? null;
-  selectRow(wide.matches ? selected ?? firstVisible : null);
-});
+try {
+  savedChats = readChats();
+  renderSavedChats();
+} catch {
+  showHistoryError("Bu tarayıcıdaki sohbet geçmişi açılamadı.");
+}
 
 fetchJson("/api/examples").then((data) => {
   examples = data.examples;
   if (!byId("limit").matches(":focus") && byId("limit").selectedOptions[0].defaultSelected) {
     byId("limit").value = data.default_k;
   }
-  for (const [label, text] of Object.entries(examples)) {
-    byId("examples").add(new Option(label, label));
+  const contexts = {
+    "PowerShell": "Windows uç nokta uyarısı",
+    "Zamanlanmış görev": "Oturum açma etkinliği",
+    "Kimlik bilgilerine erişim": "Süreç telemetrisi",
+    "Yetersiz bağlam": "Gündelik kullanıcı etkinliği",
+  };
+  for (const label of Object.keys(examples)) {
     const card = button(undefined, () => loadExample(label), "example-card");
-    const title = element("strong", label);
-    const arrow = element("span", "↗");
-    arrow.setAttribute("aria-hidden", "true");
-    title.append(arrow);
-    card.append(title, element("span", text));
+    card.dataset.example = label;
+    card.setAttribute("aria-pressed", "false");
+    card.append(element("strong", label), element("span", contexts[label] ?? examples[label]),
+      element("small", "›", "example-arrow"));
     card.disabled = running;
     byId("example-cards").append(card);
   }
-  byId("examples").disabled = running;
   byId("examples-status").hidden = true;
+  renderPrompts(Boolean(lastResult));
 }).catch(() => {
-  byId("examples").disabled = true;
-  byId("examples-status").textContent = "Örnekler yüklenemedi. Olay açıklamanızı doğrudan yazabilirsiniz.";
+  byId("examples-status").textContent = "Örnekler yüklenemedi.";
 });
 
 fetchJson("/api/health").then((data) => {
@@ -601,7 +815,7 @@ fetchJson("/api/health").then((data) => {
   byId("health").textContent = [
     data.attack_ready ? "ATT&CK hazır" : "ATT&CK hazır değil",
     data.nist_ready ? `NIST CSF · ${data.nist_count} alt kategori` : "NIST hazır değil",
-    modelReady ? "Ollama erişilebilir" : (data.ollama.reachable ? `${data.model} kurulu değil` : "Ollama erişilemiyor"),
+    modelReady ? "Ollama hazır" : (data.ollama.reachable ? `${data.model} kurulu değil` : "Ollama erişilemiyor"),
   ].join(" · ");
   updateModelWarning();
 }).catch(() => { byId("health").textContent = "Analiz sunucusuna ulaşılamıyor"; });
