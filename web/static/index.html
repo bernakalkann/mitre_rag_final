@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <title>MITRE-RAG · Analist asistanı</title>
-  <link rel="stylesheet" href="/static/app.css?v=chat-1">
+  <link rel="stylesheet" href="/static/app.css?v=radar-green-1">
   <link rel="stylesheet" href="/static/evidence-map.css">
+  <link rel="icon" type="image/png" href="/static/mitre-rag-radar.png">
   <script src="/static/app.js?v=chat-1" defer></script>
 </head>
 <body>
@@ -14,9 +15,11 @@
   <header class="topbar">
     <div class="page topbar-inner">
       <div class="wordmark">
-        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
-        <strong>MITRE<span class="brand-accent">-RAG</span></strong>
-        <span class="brand-divider">Olay inceleme</span>
+        <img class="brand-mark" src="/static/mitre-rag-radar.png" alt="" width="40" height="40">
+        <div class="brand-text">
+          <strong>MITRE<span class="brand-accent">-RAG</span></strong>
+          <span>Yerel güvenlik analisti</span>
+        </div>
       </div>
       <p id="health" class="health" role="status">Kaynaklar kontrol ediliyor…</p>
     </div>
@@ -68,6 +71,7 @@
     </aside>
 
     <div class="main-center">
+      <div class="radar-backdrop" aria-hidden="true"></div>
       <header id="workspace-empty" class="workspace-heading">
         <h1>Hangi olayı inceleyelim?</h1>
         <p>Olayı veya alarmı anlat. Yerel analist, ilgili teknikleri ve savunma başlıklarını kaynaklarıyla gösterir.</p>
@@ -154,7 +158,7 @@
           <div class="composer-toolbar">
             <div class="analysis-options" id="mode-options">
               <details class="settings">
-                <summary>Analiz ayarları</summary>
+                <summary><span class="settings-mark" aria-hidden="true"></span>Analiz ayarları</summary>
                 <div class="settings-content">
                   <label class="search-option">ATT&amp;CK arama yöntemi
                     <select id="mode" name="mode">
@@ -177,7 +181,7 @@
             <span id="followup-context" class="muted" hidden>Olay bağlamında takip sorusu</span>
             <div class="form-actions">
               <kbd class="shortcut" aria-hidden="true">Enter ↵</kbd>
-              <button id="submit" type="submit" class="primary"><span id="spinner" class="spinner" hidden aria-hidden="true"></span><span id="submit-label">Gönder</span><span aria-hidden="true">↑</span></button>
+              <button id="submit" type="submit" class="primary"><span id="spinner" class="spinner" hidden aria-hidden="true"></span><span id="submit-label">Gönder</span><span class="send-mark" aria-hidden="true">↑</span></button>
             </div>
           </div>
           <p id="model-warning" class="muted" hidden>Ollama şu an erişilemiyor. Olay analizinde adaylar yine gösterilebilir.</p>
