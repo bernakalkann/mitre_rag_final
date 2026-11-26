@@ -141,8 +141,7 @@ select, .settings summary { min-height: 32px; padding: 5px 7px; background: var(
 }
 .settings-content { position: absolute; z-index: 3; inset: calc(100% + 6px) auto auto 0; width: min(230px, 60vw); padding: 11px; background: var(--raised); border: 1px solid var(--line); border-radius: 6px; font-size: 12px; }
 .search-option { display: grid; gap: 4px; margin-bottom: 8px; }
-.model-option, .candidate-limit { display: flex; align-items: center; gap: 8px; }
-.model-option input { accent-color: var(--accent); }
+.candidate-limit { display: flex; align-items: center; gap: 8px; }
 .candidate-limit { justify-content: space-between; margin-top: 8px; }
 .settings-content p { margin-top: 7px; }
 .primary, .send-mark { font-size: 15px; line-height: 1; }
@@ -152,7 +151,7 @@ select, .settings summary { min-height: 32px; padding: 5px 7px; background: var(
 .composer .primary { min-height: 38px; padding-inline: 14px; border-radius: 8px; font-size: 12px; }
 .secondary { background: var(--raised); }
 .secondary:hover { background: #2b393e; }
-.shortcut, #followup-context, #model-warning, .status, .field-error { color: var(--muted); font-size: 11px; }
+.shortcut, #model-warning, .status, .field-error { color: var(--muted); font-size: 11px; }
 .status:empty { display: none; }
 .field-error, .error-panel > p:first-child { color: var(--danger); }
 .field-error { margin-top: 5px; }

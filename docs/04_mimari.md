@@ -39,3 +39,17 @@ Bu sürümde alt teknikler ayrı adaydır; üst tekniklere toplama yapılmaz.
 
 Model yükleme süresi sorgu+arama ölçümüne dahil değildir ve çıktıda belirtilir.
 Bu demo süreleri, 13. haftadaki kontrollü yöntem karşılaştırmasının yerine geçmez.
+
+## Web hesabı ve kalıcı sohbet geçmişi
+
+Yerel web arayüzündeki hesaplar, oturumlar ve sohbetler SQLite ile
+`data/private/workbench.sqlite3` dosyasında saklanır. SQLite, sunum
+kurulumunda ayrı bir veritabanı servisi gerektirmediği için seçildi.
+`MITRE_RAG_DB` ile farklı bir veritabanı yolu kullanılabilir. Varsayılan
+veritabanı klasörü Git kapsamı dışındadır.
+
+Parolalar rastgele tuzla scrypt kullanılarak özetlenir. Oturum çerezi
+tarayıcıda, doğrulama için gereken özet veritabanında tutulur. Sohbet
+sorguları oturumdaki hesap kimliğiyle sınırlandırılır. Sohbet kaydı olay
+metnini, analiz sonucunu, kaynakları ve takip sorularını içerir. Tarayıcıda
+önceden saklanan geçmiş, kullanıcı onay verirse açık hesaba aktarılır.

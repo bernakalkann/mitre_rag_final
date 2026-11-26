@@ -5,10 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <title>MITRE-RAG · Analist asistanı</title>
-  <link rel="stylesheet" href="/static/app.css?v=radar-green-1">
+  <link rel="stylesheet" href="/static/app.css?v=composer-3">
   <link rel="stylesheet" href="/static/evidence-map.css">
+  <link rel="stylesheet" href="/static/workspace.css?v=composer-3">
   <link rel="icon" type="image/png" href="/static/mitre-rag-radar.png">
-  <script src="/static/app.js?v=chat-1" defer></script>
+  <script src="/static/app.js?v=composer-3" defer></script>
+  <script src="/static/account.js?v=1" defer></script>
 </head>
 <body>
   <a id="skip-results" class="skip" href="#sonuclar" hidden>Sonuçlara atla</a>
@@ -18,14 +20,59 @@
         <img class="brand-mark" src="/static/mitre-rag-radar.png" alt="" width="40" height="40">
         <div class="brand-text">
           <strong>MITRE<span class="brand-accent">-RAG</span></strong>
-          <span>Yerel güvenlik analisti</span>
+          <span>Kanıt Masası</span>
         </div>
       </div>
-      <p id="health" class="health" role="status">Kaynaklar kontrol ediliyor…</p>
+      <div class="topbar-tools">
+        <p id="health" class="health" role="status" hidden>Kaynaklar kontrol ediliyor…</p>
+        <button id="open-profile" class="secondary" type="button" hidden></button>
+      </div>
     </div>
   </header>
 
-  <main class="page workbench">
+  <main id="auth-page" class="page auth-page">
+    <section class="auth-panel" aria-labelledby="auth-title">
+      <p id="auth-loading" role="status">Oturum kontrol ediliyor…</p>
+      <form id="auth-form" hidden>
+        <h1 id="auth-title">Oturum aç</h1>
+        <label id="registration-name" hidden>Adın
+          <input id="auth-name" autocomplete="name" minlength="2" maxlength="80">
+        </label>
+        <label>E-posta
+          <input id="auth-email" type="email" autocomplete="email" maxlength="254" required>
+        </label>
+        <label>Parola
+          <input id="auth-password" type="password" autocomplete="current-password" maxlength="128" required>
+        </label>
+        <p id="password-hint" class="muted" hidden>En az 12 karakter kullan.</p>
+        <p id="auth-error" class="field-error" role="alert" hidden></p>
+        <div class="account-actions">
+          <button id="auth-submit" type="submit" class="primary">Oturum aç</button>
+          <button id="switch-auth" type="button" class="text-button">Hesap oluştur</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <dialog id="profile-dialog" aria-labelledby="profile-title">
+    <form id="profile-form">
+      <header class="profile-heading">
+        <h2 id="profile-title">Profil</h2>
+        <button id="close-profile" type="button" class="secondary">Kapat</button>
+      </header>
+      <label>Adın
+        <input id="profile-name" autocomplete="name" minlength="2" maxlength="80" required>
+      </label>
+      <dl class="profile-email"><dt>E-posta</dt><dd id="profile-email"></dd></dl>
+      <p id="profile-error" class="field-error" role="alert" hidden></p>
+      <div class="account-actions">
+        <button id="save-profile" type="submit" class="primary">Kaydet</button>
+        <button id="logout" type="button" class="text-button">Çıkış yap</button>
+      </div>
+    </form>
+  </dialog>
+
+  <main id="workbench" class="page workbench" hidden>
     <aside id="workspace-sidebar" class="workspace-sidebar" aria-label="Olaylar ve kanıtlar">
       <section class="case-rail" aria-labelledby="cases-title">
         <div class="rail-heading">
@@ -36,7 +83,8 @@
           <h3 id="history-title">Geçmiş sohbetler</h3>
           <p id="history-empty" class="muted">Henüz kaydedilmiş sohbet yok.</p>
           <ul id="saved-chats" class="saved-chats"></ul>
-          <p id="history-note" class="muted">Sohbetler bu tarayıcıda saklanır.</p>
+          <button id="import-chats" class="text-button" type="button" hidden>Tarayıcı geçmişini aktar</button>
+          <button id="retry-save" class="text-button" type="button" hidden>Kaydetmeyi tekrar dene</button>
           <p id="history-error" class="field-error" role="status" hidden></p>
         </section>
         <section class="rail-examples" aria-labelledby="examples-title">
@@ -71,10 +119,9 @@
     </aside>
 
     <div class="main-center">
-      <div class="radar-backdrop" aria-hidden="true"></div>
       <header id="workspace-empty" class="workspace-heading">
-        <h1>Hangi olayı inceleyelim?</h1>
-        <p>Olayı veya alarmı anlat. Yerel analist, ilgili teknikleri ve savunma başlıklarını kaynaklarıyla gösterir.</p>
+        <h1>Yeni olay incelemesi</h1>
+        <p>İncelemek istediğin olay açıklamasını veya alarm kaydını gir.</p>
       </header>
       <section id="sonuclar" class="results" aria-labelledby="result-title" hidden>
         <div class="results-top">
@@ -142,7 +189,7 @@
       <div id="pending-message" hidden></div>
 
       <section class="prompt-section" aria-labelledby="prompts-title">
-        <h2 id="prompts-title">Hazır sorular</h2>
+        <h2 id="prompts-title">Örnek başlangıçlar</h2>
         <div id="prompt-grid" class="prompt-grid"></div>
       </section>
 
@@ -167,7 +214,6 @@
                       <option value="bm25">Anahtar kelime · BM25</option>
                     </select>
                   </label>
-                  <label class="model-option"><input type="checkbox" id="with-model" checked> Yerel modelle açıkla</label>
                   <label class="candidate-limit" for="limit">Kaynak başına aday
                     <select id="limit" name="k" aria-describedby="limit-help">
                       <option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option>
@@ -178,20 +224,26 @@
                 </div>
               </details>
             </div>
-            <span id="followup-context" class="muted" hidden>Olay bağlamında takip sorusu</span>
             <div class="form-actions">
-              <kbd class="shortcut" aria-hidden="true">Enter ↵</kbd>
+              <label id="answer-mode" class="answer-mode">
+                <span class="sr-only">Model seçimi</span>
+                <select id="with-model">
+                  <option value="search">Modelsiz arama</option>
+                  <option id="local-model-option" value="local">Qwen · Yerel model</option>
+                </select>
+              </label>
+              <p id="answer-route" class="answer-route" role="status" hidden></p>
               <button id="submit" type="submit" class="primary"><span id="spinner" class="spinner" hidden aria-hidden="true"></span><span id="submit-label">Gönder</span><span class="send-mark" aria-hidden="true">↑</span></button>
             </div>
           </div>
-          <p id="model-warning" class="muted" hidden>Ollama şu an erişilemiyor. Olay analizinde adaylar yine gösterilebilir.</p>
+          <p id="model-warning" class="muted" role="status" hidden></p>
           <div id="analysis-status" class="status" role="status"></div>
           <div id="analysis-error" class="error-panel" role="alert" hidden></div>
         </form>
       </section>
 
-      <section id="workflow" class="workflow" aria-labelledby="workflow-title">
-        <h2 id="workflow-title">MITRE-RAG nasıl kullanılır?</h2>
+      <details id="workflow" class="workflow">
+        <summary>MITRE-RAG nasıl kullanılır?</summary>
         <ol>
           <li>
             <strong>Olayı gir</strong>
@@ -206,7 +258,7 @@
             <span>Kanıt Haritası’ndan bir aday seçip soldaki kaynağı oku. Sohbet’te “Hangi bilgi eksik?” diye sorabilirsin.</span>
           </li>
         </ol>
-      </section>
+      </details>
     </div>
   </main>
 </body>

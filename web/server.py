@@ -10,17 +10,21 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from mitre_final import rag, service
+from web import accounts
 
 STATIC = Path(__file__).resolve().parent / "static"
 
 
 @asynccontextmanager
 async def lifespan(app):
+    app.state.account_store = accounts.make_store()
+    await run_in_threadpool(app.state.account_store.initialize)
     app.state.warmed = await run_in_threadpool(service.warm_up)
     yield
 
 
 app = FastAPI(title="MITRE-RAG", lifespan=lifespan)
+app.include_router(accounts.router)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 

@@ -26,8 +26,8 @@ const functions = {
 };
 
 let examples = {};
-let modelReady = null;
 let modelName = "qwen3:8b";
+let modelIssue = "";
 let lastResult = null;
 let selected = null;
 let running = false;
@@ -37,6 +37,9 @@ let caseSettings = null;
 let conversation = [];
 let activeCitation = null;
 let activeChatId = null;
+let activeRevision = null;
+let unsavedChat = false;
+let saveConflict = false;
 const historyKey = "mitre-rag.chats.v1";
 const historyDate = new Intl.DateTimeFormat("tr-TR", {day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"});
 let savedChats = [];
@@ -84,24 +87,38 @@ function officialLink(url, label) {
 
 async function fetchJson(url, options) {
   const response = await fetch(url, options);
+  if (response.status === 204) return null;
   const data = await response.json();
-  if (!response.ok) throw new Error(typeof data.detail === "string" ? data.detail : "İstek tamamlanamadı.");
+  if (!response.ok) {
+    const error = new Error(typeof data.detail === "string" ? data.detail : "Alanları kontrol edip tekrar dene.");
+    error.status = response.status;
+    throw error;
+  }
   return data;
 }
 
-function updateModelWarning() {
-  const needsModel = lastResult || byId("with-model").checked;
+function updateAnswerRoute() {
+  const followup = Boolean(lastResult);
+  const useSources = followup && isReadyQuestion(incident.value);
+  const route = byId("answer-route");
+  const label = useSources ? "Olay kaynakları" : modelName;
+  if (route.textContent !== label) route.textContent = label;
+  route.hidden = !followup;
+
   const warning = byId("model-warning");
-  warning.hidden = !needsModel || modelReady !== false;
-  warning.textContent = lastResult
-    ? "Takip soruları için yerel Ollama ve modelin çalışması gerekiyor."
-    : "Ollama şu an erişilemiyor. Analiz sırasında adaylar yine gösterilebilir.";
+  const needsModel = followup ? !useSources : byId("with-model").value === "local";
+  warning.hidden = !modelIssue || !needsModel;
+  const message = followup
+    ? `${modelIssue} Hazır sorular kullanılabilir.`
+    : `${modelIssue} Arama sonuçları yine gösterilir.`;
+  if (!warning.hidden && warning.textContent !== message) warning.textContent = message;
 }
 
 function updateInput() {
   incident.removeAttribute("aria-invalid");
   incident.setAttribute("aria-describedby", "composer-help");
   byId("input-error").hidden = true;
+  updateAnswerRoute();
   for (const card of byId("example-cards").children) {
     card.setAttribute("aria-pressed", String(card.dataset.example === caseLabel));
   }
@@ -120,7 +137,7 @@ function renderError(target, message, detail, retry = true) {
 
 function setBusy(busy) {
   running = busy;
-  for (const id of ["submit", "mode", "limit", "with-model", "new-case"]) byId(id).disabled = busy;
+  for (const id of ["submit", "mode", "limit", "with-model", "new-case", "open-profile", "import-chats", "retry-save"]) byId(id).disabled = busy;
   for (const control of document.querySelectorAll(".example-card, .prompt-button, #saved-chats button")) {
     control.disabled = busy;
   }
@@ -147,12 +164,13 @@ function setConversationMode(ready) {
     "Bir olayı anlat veya alarm metnini yapıştır…";
   byId("composer-label").textContent = ready ? "Takip sorusu" : "Olay açıklaması";
   byId("mode-options").hidden = ready;
-  byId("followup-context").hidden = !ready;
+  byId("answer-mode").hidden = ready;
+  byId("prompts-title").textContent = ready ? "Sorabileceklerin" : "Örnek başlangıçlar";
   byId("case-context").hidden = !ready;
   byId("workflow").hidden = ready;
   byId("source-preview").hidden = ready;
   renderPrompts(ready);
-  updateModelWarning();
+  updateAnswerRoute();
 }
 
 function renderPrompts(ready) {
@@ -198,7 +216,7 @@ function renderSavedChats() {
     item.append(open, remove);
     return item;
   }));
-  byId("history-empty").hidden = Boolean(savedChats.length);
+  byId("history-empty").hidden = Boolean(savedChats.length) || byId("history-error").textContent !== "";
 }
 
 function chatTitle() {
@@ -206,29 +224,49 @@ function chatTitle() {
   return text.length > 56 ? text.slice(0, 55) + "…" : text;
 }
 
-function saveChat() {
+async function saveChat() {
   activeChatId ??= crypto.randomUUID();
   const chat = {
-    id: activeChatId, title: chatTitle(),
-    label: caseLabel, updatedAt: Date.now(),
-    settings: caseSettings, result: lastResult, conversation,
+    title: chatTitle(), label: caseLabel, settings: caseSettings,
+    result: lastResult, conversation, revision: activeRevision,
   };
-  savedChats = [chat, ...savedChats.filter(item => item.id !== chat.id)];
+  unsavedChat = true;
   try {
-    const stored = readChats().filter(item => item.id !== chat.id);
-    localStorage.setItem(historyKey, JSON.stringify([chat, ...stored]));
-    savedChats = [chat, ...stored];
+    const saved = await accountRequest("/api/chats/" + activeChatId, jsonRequest("PUT", chat));
+    activeRevision = saved.revision;
+    savedChats = [saved, ...savedChats.filter(item => item.id !== saved.id)];
+    unsavedChat = false;
+    saveConflict = false;
     showHistoryError("");
-  } catch {
-    showHistoryError("Sohbet bu tarayıcıya kaydedilemedi. Bu sayfa açıkken geçmişte görünecek.");
+  } catch (error) {
+    saveConflict = error.status === 409;
+    showHistoryError("Sohbet kaydedilemedi. " + error.message);
   }
+  byId("retry-save").hidden = !unsavedChat;
+  byId("retry-save").textContent = saveConflict ? "Yeni sohbet olarak kaydet" : "Kaydetmeyi tekrar dene";
   renderSavedChats();
 }
 
-function openSavedChat(chat) {
-  if (running || chat.id === activeChatId) return;
+function mayLeaveChat() {
+  return !unsavedChat || window.confirm("Bu sohbette kaydedilmemiş değişiklikler var. Ayrılmak istiyor musun?");
+}
+
+async function openSavedChat(summary) {
+  if (running || summary.id === activeChatId || !mayLeaveChat()) return;
+  setBusy(true);
+  let chat;
+  try {
+    chat = await accountRequest("/api/chats/" + summary.id);
+    showHistoryError("");
+  } catch (error) {
+    showHistoryError(error.message);
+    return;
+  } finally {
+    setBusy(false);
+  }
   resetCase(false);
   activeChatId = chat.id;
+  activeRevision = chat.revision;
   caseLabel = chat.label;
   caseSettings = chat.settings;
   lastResult = chat.result;
@@ -242,15 +280,17 @@ function openSavedChat(chat) {
   nudgeTo(byId("result-title"));
 }
 
-function removeSavedChat(chat) {
-  if (running || !window.confirm("Bu sohbet bu tarayıcıdaki geçmişten silinsin mi?")) return;
+async function removeSavedChat(chat) {
+  if (running || !window.confirm("Bu sohbet hesabındaki geçmişten silinsin mi?")) return;
+  setBusy(true);
   try {
-    const stored = readChats().filter(item => item.id !== chat.id);
-    localStorage.setItem(historyKey, JSON.stringify(stored));
+    await accountRequest("/api/chats/" + chat.id + "?revision=" + chat.revision, {method: "DELETE"});
     showHistoryError("");
-  } catch {
-    showHistoryError("Sohbet geçmişten silinemedi.");
+  } catch (error) {
+    showHistoryError(error.message);
     return;
+  } finally {
+    setBusy(false);
   }
   savedChats = savedChats.filter(item => item.id !== chat.id);
   if (activeChatId === chat.id) resetCase();
@@ -263,6 +303,10 @@ function removeSavedChat(chat) {
 function resetCase(focus = true) {
   if (running) return;
   activeChatId = null;
+  activeRevision = null;
+  unsavedChat = false;
+  saveConflict = false;
+  byId("retry-save").hidden = true;
   lastResult = null;
   caseLabel = "";
   caseSettings = null;
@@ -347,6 +391,8 @@ function appendSources(panel, sources, needed) {
 function renderFollowup(question, answer, focus = true) {
   const history = byId("chat-history");
   const response = makeTurn("MITRE-RAG", answer.text, "assistant");
+  const origin = answer.model || (isReadyQuestion(question) ? "Olay kaynakları" : "");
+  if (origin) response.firstElementChild.append(element("span", origin, "answer-origin"));
   appendSources(response, answer.sources, answer.additional_data_needed);
   history.append(makeTurn("Sen", question, "analyst"), response);
   if (focus) {
@@ -359,7 +405,7 @@ function renderFollowup(question, answer, focus = true) {
 async function submitAnalysis(text) {
   const method = byId("mode").value;
   const k = Number(byId("limit").value);
-  const requestedMode = byId("with-model").checked ? "rag" : method;
+  const requestedMode = (byId("with-model").value === "local") ? "rag" : method;
   const data = await fetchJson("/api/analyze", {
     method: "POST", headers: {"Content-Type": "application/json"},
     body: JSON.stringify({text, mode: requestedMode, k, attack_method: method}),
@@ -372,30 +418,94 @@ async function submitAnalysis(text) {
   renderResults(data, method, k);
   incident.value = "";
   setConversationMode(true);
-  saveChat();
+  await saveChat();
   byId("result-title").focus({preventScroll: true});
   nudgeTo(byId("result-title"));
 }
 
-async function submitFollowup(question) {
+function mentionedTechniques(data) {
+  const normalize = (value) => ` ${value.toLocaleLowerCase("en-US").replace(/[^\p{L}\p{N}]+/gu, " ").trim()} `;
+  const query = normalize(data.export.query);
+  return data.attack.items.filter(item => {
+    const name = normalize(item.name).trim();
+    return query.includes(normalize(item.attack_id)) ||
+      (name.length >= 4 && query.includes(` ${name} `)) ||
+      (item.attack_id === "T1053.002" && query.includes(" at exe "));
+  }).slice(0, 2);
+}
+
+function readyQuestionIndex(question) {
+  const normalize = text => text.toLocaleLowerCase("tr-TR").trim().replace(/[?.!]+$/, "");
+  return followupPrompts.findIndex(([label]) => normalize(label) === normalize(question));
+}
+
+function isReadyQuestion(question) {
+  return readyQuestionIndex(question) >= 0;
+}
+
+function answerFromCase(question, data) {
+  const prompt = readyQuestionIndex(question);
+  const explanation = data.explanation?.status === "ok" ? data.explanation : null;
+  const answer = {text: "", sources: [], additional_data_needed: []};
+
+  switch (prompt) {
+    case 0: {
+      if (explanation?.sources.length) {
+        answer.text = explanation.sources.map(source =>
+          `${source.name} (${source.attack_id}) — ${source.explanation}`).join("\n");
+        answer.sources = explanation.sources;
+        break;
+      }
+      const candidates = explanation ? [] : mentionedTechniques(data);
+      if (candidates.length) {
+        answer.text = `Olay metninde ${candidates.map(item => `${item.name} (${item.attack_id})`).join(", ")} ile örtüşen ad veya kod geçiyor. Bu kayıtlar olası eşleşmenin dayanağını incelemek için kullanılabilir. Eşleşmeyi doğrulamak için sürecin ne yaptığını gösteren kayıtlara bakmak gerekir.`;
+        answer.sources = candidates.map(({attack_id, source_url}) => ({attack_id, source_url}));
+      } else {
+        answer.text = "Bu olay metni belirli bir ATT&CK tekniğini destekleyecek davranış ayrıntısı içermiyor. Olay dosyasındaki adaylar aramanın bulduğu en yakın kayıtlar. Eşleşmeyi değerlendirmek için uygulamayı hangi sürecin başlattığı, hangi hesabın kullandığı ve alarmı neyin tetiklediği gibi bilgiler gerekir.";
+      }
+      break;
+    }
+    case 1:
+      answer.text = "Eşleşmeyi netleştirmek için olayın hangi davranışı kaydettiğini ve bu davranışın hangi koşullarda gerçekleştiğini gösteren kayıtlar gerekir.";
+      answer.additional_data_needed = explanation?.additional_data_needed?.length
+        ? explanation.additional_data_needed
+        : ["İşlemi başlatan süreç ve varsa üst süreç", "Olayın zamanı, cihazı ve kullanıcı hesabı", "Alarmı tetikleyen davranışı gösteren işlem veya denetim kaydı"];
+      break;
+    case 2: {
+      const candidates = data.nist.items.slice(0, 3);
+      answer.text = candidates.length
+        ? `Olay için incelenebilecek NIST CSF başlıkları ${candidates.map(item => `${item.id} (${item.category})`).join(", ")}. Bu başlıklar savunma ve izleme değerlendirmesine yardımcı olur. Kaynak numaralarını seçerek her başlığın dayanağını açabilirsin.`
+        : "Bu olayda incelenebilecek bir NIST CSF başlığı bulunamadı.";
+      answer.sources = candidates.map(({id}) => ({nist_id: id, source_url: data.export.nist_csf?.source_url}));
+      break;
+    }
+    default:
+      return null;
+  }
+  return answer;
+}
+
+async function submitFollowup(question, answer) {
   const history = conversation.slice(-3).map(({question, answer}) => ({
     question, answer: answer.text.slice(0, 800),
   }));
-  const answer = await fetchJson("/api/ask", {
+  answer ??= await fetchJson("/api/ask", {
     method: "POST", headers: {"Content-Type": "application/json"},
     body: JSON.stringify({incident: lastResult.export.query, question, history, ...caseSettings}),
+    signal: AbortSignal.timeout(95_000),
   });
   conversation.push({question, answer});
   incident.value = "";
+  updateAnswerRoute();
   showView("chat");
   renderFollowup(question, answer);
   updateExport();
-  saveChat();
+  await saveChat();
 }
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (running) return;
+  if (running || !currentAccount) return;
   const text = incident.value.trim();
   if (!text) {
     incident.setAttribute("aria-invalid", "true");
@@ -407,6 +517,7 @@ form.addEventListener("submit", async (event) => {
   }
 
   const followup = Boolean(lastResult);
+  const readyAnswer = followup ? answerFromCase(text, lastResult) : null;
   byId("analysis-error").hidden = true;
   setBusy(true);
   const pending = byId("pending-message");
@@ -415,11 +526,13 @@ form.addEventListener("submit", async (event) => {
   if (followup) showView("chat");
   else byId("workspace-empty").hidden = true;
   const status = byId("analysis-status");
-  status.textContent = followup || byId("with-model").checked
-    ? "Kaynaklar inceleniyor, yerel model yanıtı hazırlıyor…"
-    : "ATT&CK ve NIST kaynakları aranıyor…";
+  if (followup) {
+    status.textContent = readyAnswer ? "Olay kaynakları inceleniyor…" : `${modelName} yanıt hazırlıyor…`;
+  } else {
+    status.textContent = "ATT&CK ve NIST kaynakları aranıyor…";
+  }
   try {
-    if (followup) await submitFollowup(text);
+    if (followup) await submitFollowup(text, readyAnswer);
     else await submitAnalysis(text);
   } catch (error) {
     renderError(byId("analysis-error"), followup ? "Takip sorusu yanıtlanamadı." : "Olay analizi tamamlanamadı.", error.message);
@@ -428,6 +541,7 @@ form.addEventListener("submit", async (event) => {
     pending.hidden = true;
     byId("workspace-empty").hidden = Boolean(lastResult);
     status.textContent = "";
+    updateAnswerRoute();
     setBusy(false);
   }
 });
@@ -442,8 +556,26 @@ incident.addEventListener("keydown", (event) => {
     form.requestSubmit();
   }
 });
-byId("with-model").addEventListener("change", updateModelWarning);
-byId("new-case").addEventListener("click", () => resetCase());
+byId("with-model").addEventListener("change", updateAnswerRoute);
+byId("new-case").addEventListener("click", () => {
+  if (mayLeaveChat()) resetCase();
+});
+byId("retry-save").addEventListener("click", async () => {
+  if (running || !unsavedChat) return;
+  if (saveConflict) {
+    activeChatId = null;
+    activeRevision = null;
+  }
+  setBusy(true);
+  try {
+    await saveChat();
+  } finally {
+    setBusy(false);
+  }
+});
+window.addEventListener("beforeunload", event => {
+  if (unsavedChat) event.preventDefault();
+});
 byId("show-case").addEventListener("click", () => showView("case"));
 byId("map-case").addEventListener("click", () => showView("case"));
 for (const control of document.querySelectorAll("[data-view]")) {
@@ -776,13 +908,6 @@ function renderResults(data, method, k) {
   updateExport();
 }
 
-try {
-  savedChats = readChats();
-  renderSavedChats();
-} catch {
-  showHistoryError("Bu tarayıcıdaki sohbet geçmişi açılamadı.");
-}
-
 fetchJson("/api/examples").then((data) => {
   examples = data.examples;
   if (!byId("limit").matches(":focus") && byId("limit").selectedOptions[0].defaultSelected) {
@@ -810,12 +935,18 @@ fetchJson("/api/examples").then((data) => {
 });
 
 fetchJson("/api/health").then((data) => {
-  modelReady = data.ollama.model_ready;
   modelName = data.model;
   byId("health").textContent = [
     data.attack_ready ? "ATT&CK hazır" : "ATT&CK hazır değil",
     data.nist_ready ? `NIST CSF · ${data.nist_count} alt kategori` : "NIST hazır değil",
-    modelReady ? "Ollama hazır" : (data.ollama.reachable ? `${data.model} kurulu değil` : "Ollama erişilemiyor"),
-  ].join(" · ");
-  updateModelWarning();
-}).catch(() => { byId("health").textContent = "Analiz sunucusuna ulaşılamıyor"; });
+  ].join(" / ");
+  byId("local-model-option").textContent = `${modelName} · Yerel model`;
+  if (!data.ollama.model_ready) {
+    modelIssue = data.ollama.reachable ? `${modelName} kurulu değil.` : "Ollama erişilemiyor.";
+  }
+  updateAnswerRoute();
+}).catch(() => {
+  byId("health").textContent = "Analiz sunucusuna ulaşılamıyor";
+  modelIssue = "Yerel modelin durumu kontrol edilemedi.";
+  updateAnswerRoute();
+});
