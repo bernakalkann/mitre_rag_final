@@ -3,13 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="light dark">
   <title>MITRE-RAG · Analist asistanı</title>
-  <link rel="stylesheet" href="/static/app.css?v=composer-3">
-  <link rel="stylesheet" href="/static/evidence-map.css">
-  <link rel="stylesheet" href="/static/workspace.css?v=composer-3">
+  <link rel="stylesheet" href="/static/app.css?v=tuval-1">
+  <link rel="stylesheet" href="/static/evidence-map.css?v=tuval-1">
+  <link rel="stylesheet" href="/static/workspace.css?v=tuval-1">
   <link rel="icon" type="image/png" href="/static/mitre-rag-radar.png">
-  <script src="/static/app.js?v=composer-3" defer></script>
+  <script src="/static/evidence-board.js?v=1" defer></script>
+  <script src="/static/app.js?v=tuval-1" defer></script>
   <script src="/static/account.js?v=1" defer></script>
 </head>
 <body>
@@ -22,10 +23,6 @@
           <strong>MITRE<span class="brand-accent">-RAG</span></strong>
           <span>Kanıt Masası</span>
         </div>
-      </div>
-      <div class="topbar-tools">
-        <p id="health" class="health" role="status" hidden>Kaynaklar kontrol ediliyor…</p>
-        <button id="open-profile" class="secondary" type="button" hidden></button>
       </div>
     </div>
   </header>
@@ -73,14 +70,22 @@
   </dialog>
 
   <main id="workbench" class="page workbench" hidden>
-    <aside id="workspace-sidebar" class="workspace-sidebar" aria-label="Olaylar ve kanıtlar">
+    <aside id="workspace-sidebar" class="workspace-sidebar" aria-label="Sohbetler ve örnek olaylar">
       <section class="case-rail" aria-labelledby="cases-title">
-        <div class="rail-heading">
-          <h2 id="cases-title">İncelemeler</h2>
-          <button id="new-case" class="secondary" type="button"><span aria-hidden="true">+</span> Yeni sohbet</button>
+        <div class="rail-brand">
+          <img src="/static/mitre-rag-radar.png" alt="" width="32" height="32">
+          <strong class="nav-label" id="cases-title">MITRE-RAG</strong>
+          <button id="toggle-navigation" class="quiet-control" type="button" aria-expanded="true" aria-controls="workspace-sidebar" aria-label="Gezinmeyi daralt" title="Gezinmeyi daralt">«</button>
         </div>
+        <nav class="workspace-nav" aria-label="Çalışma alanı">
+          <button id="new-case" type="button" title="Yeni sohbet"><span class="nav-symbol" aria-hidden="true">+</span><span class="nav-label">Yeni sohbet</span></button>
+          <button type="button" data-view="map" aria-pressed="true" aria-controls="view-map" title="Analiz Masası"><span class="nav-symbol" aria-hidden="true">▦</span><span class="nav-label">Analiz Masası</span></button>
+          <button type="button" data-view="chat" aria-controls="assistant-pane" title="Sohbet Asistanı"><span class="nav-symbol" aria-hidden="true">▤</span><span class="nav-label">Sohbet Asistanı</span></button>
+          <button type="button" data-view="case" aria-pressed="false" aria-controls="view-case" title="Kanıtlar" disabled><span class="nav-symbol" aria-hidden="true">▱</span><span class="nav-label">Kanıtlar</span></button>
+          <button id="nav-attack" type="button" aria-controls="source-groups" title="MITRE ATT&amp;CK" disabled><span class="nav-symbol" aria-hidden="true">⌖</span><span class="nav-label">MITRE ATT&amp;CK</span></button>
+        </nav>
         <section class="rail-history" aria-labelledby="history-title">
-          <h3 id="history-title">Geçmiş sohbetler</h3>
+          <h3 id="history-title">Sohbet geçmişi</h3>
           <p id="history-empty" class="muted">Henüz kaydedilmiş sohbet yok.</p>
           <ul id="saved-chats" class="saved-chats"></ul>
           <button id="import-chats" class="text-button" type="button" hidden>Tarayıcı geçmişini aktar</button>
@@ -97,57 +102,38 @@
           <p id="case-name"></p>
           <button id="show-case" class="text-button" type="button">Olay dosyasına git <span aria-hidden="true">→</span></button>
         </section>
-      </section>
-      <section class="evidence-rail" aria-labelledby="evidence-heading">
-        <div class="rail-heading"><h2 id="evidence-heading">Kanıt ve kaynaklar</h2></div>
-        <div id="source-preview" class="source-preview">
-          <article class="source-attack">
-            <h3>MITRE ATT&amp;CK</h3>
-            <p>Teknik kodu, taktik ve eşleşmenin dayandığı kaynak metni.</p>
-          </article>
-          <article class="source-nist">
-            <h3>NIST CSF 2.0</h3>
-            <p>Olayla ilişkili olabilecek izleme ve savunma başlıkları.</p>
-          </article>
-          <section class="evidence-hint">
-            <h3>Kaynağı incele</h3>
-            <p>Analizden sonra bir aday veya kaynak numarası seçtiğinde dayanak burada açılır.</p>
-          </section>
+        <div class="rail-account">
+          <div id="health" class="health" role="status" hidden><span id="source-status">Kaynaklar kontrol ediliyor…</span></div>
+          <button id="theme-toggle" class="text-button" type="button" aria-pressed="false">Açık tema</button>
+          <button id="open-profile" class="secondary" type="button" hidden></button>
         </div>
-        <div id="kanit-paneli" class="evidence" aria-label="Seçili adayın kanıtı"></div>
       </section>
     </aside>
 
-    <div class="main-center">
-      <header id="workspace-empty" class="workspace-heading">
-        <h1>Yeni olay incelemesi</h1>
-        <p>İncelemek istediğin olay açıklamasını veya alarm kaydını gir.</p>
+    <section class="board-pane" aria-labelledby="result-title">
+      <header class="board-heading">
+        <h1 id="result-title" tabindex="-1">Analiz Masası</h1>
+        <a id="download" class="secondary" download="mitre_rag_analiz.json" hidden>JSON indir</a>
       </header>
-      <section id="sonuclar" class="results" aria-labelledby="result-title" hidden>
-        <div class="results-top">
-          <div>
-            <h2 id="result-title" tabindex="-1">Olay incelemesi</h2>
-            <p id="result-meta" class="muted"></p>
-          </div>
-          <a id="download" class="secondary" download="mitre_rag_analiz.json">JSON indir</a>
+      <section id="view-map" class="board-view" aria-label="Kanıt haritası">
+        <div class="board-tools" role="group" aria-label="Tuval yakınlaştırma">
+          <button id="board-zoom-out" type="button" title="Uzaklaştır" aria-label="Uzaklaştır">−</button>
+          <output id="board-zoom">100%</output>
+          <button id="board-zoom-in" type="button" title="Yakınlaştır" aria-label="Yakınlaştır">+</button>
+          <button id="board-fit" type="button" title="Tuvale sığdır" aria-label="Tuvale sığdır">Sığdır</button>
         </div>
-        <div id="result-content">
-          <div class="view-tabs" aria-label="İnceleme görünümü">
-            <button type="button" data-view="chat" aria-pressed="true" aria-controls="view-chat">Sohbet</button>
-            <button type="button" data-view="case" aria-pressed="false" aria-controls="view-case">Olay dosyası</button>
-            <button type="button" data-view="map" aria-pressed="false" aria-controls="view-map">Kanıt haritası</button>
+        <div id="board-viewport" class="board-viewport" tabindex="0" aria-label="Kanıt tuvali. Ok tuşlarıyla gezin; artı ve eksiyle yakınlaştır.">
+          <div id="board-world" class="board-world">
+            <svg id="board-lines" aria-hidden="true"></svg>
+            <div id="board-nodes"></div>
           </div>
-
-          <div id="view-chat">
-            <div class="chat-turn analyst-turn">
-              <h3>Sen</h3>
-              <p id="first-message" class="chat-text"></p>
-            </div>
-            <section id="model-block" class="model-block" aria-labelledby="model-title" hidden></section>
-            <div id="chat-history"></div>
-          </div>
-
-          <div id="view-case" hidden>
+        </div>
+        <div id="workspace-empty" class="board-empty">
+          <p>Kanıt tuvali</p>
+          <button id="board-start" class="secondary" type="button">Olay metni gir</button>
+        </div>
+      </section>
+      <div id="view-case" hidden>
             <div id="analyzed-incident" class="incident-record">
               <strong>Olay metni</strong>
               <blockquote id="analyzed-text" class="clamped"></blockquote>
@@ -171,28 +157,44 @@
             </div>
             <div id="source-groups"></div>
           </div>
-
-          <div id="view-map" hidden>
-            <section id="evidence-map" class="evidence-map" aria-labelledby="evidence-map-title">
-              <div class="evidence-map-header">
-                <h3 id="evidence-map-title">Kanıt haritası</h3>
-                <p class="muted">Kaynağı okumak için bir adayı seç. ATT&amp;CK ve NIST sonuçları olay metninden bağımsız aranır.</p>
-              </div>
-              <div class="map-root"><button id="map-case" type="button" class="secondary">Olay metni</button></div>
-              <div id="map-branches" class="map-branches"></div>
-              <p id="map-empty" class="muted" hidden>Haritada gösterilecek aday yok.</p>
-            </section>
+      <aside id="evidence-sidebar" class="evidence-rail" hidden aria-labelledby="evidence-heading">
+      <div class="rail-heading"><h2 id="evidence-heading">Kanıt ve kaynaklar</h2><button id="close-evidence" class="text-button" type="button">Kapat</button></div>
+      <div id="source-preview" class="source-preview">
+        <dl class="source-index">
+          <div>
+            <dt>MITRE ATT&amp;CK</dt>
+            <dd>Teknikler ve taktikler</dd>
           </div>
-        </div>
-      </section>
+          <div>
+            <dt>NIST CSF 2.0</dt>
+            <dd>Savunma ve izleme başlıkları</dd>
+          </div>
+        </dl>
+        <p>Bir aday seçtiğinde kaynak ayrıntıları burada açılır.</p>
+      </div>
+      <div id="kanit-paneli" class="evidence" aria-label="Seçili adayın kanıtı"></div>
+    </aside>
 
-      <div id="pending-message" hidden></div>
+    </section>
 
-      <section class="prompt-section" aria-labelledby="prompts-title">
-        <h2 id="prompts-title">Örnek başlangıçlar</h2>
-        <div id="prompt-grid" class="prompt-grid"></div>
-      </section>
-
+    <section id="assistant-pane" class="assistant-pane" aria-labelledby="assistant-title">
+      <header class="assistant-heading">
+        <h2 id="assistant-title">Analist Asistanı</h2>
+      </header>
+      <div id="assistant-log" class="assistant-log">
+        <section id="sonuclar" aria-label="Analiz sohbeti" hidden>
+          <div id="view-chat">
+            <div class="chat-turn analyst-turn">
+              <h3>Sen</h3>
+              <p id="first-message" class="chat-text"></p>
+            </div>
+            <section id="model-block" class="model-block" aria-labelledby="model-title" hidden></section>
+            <div id="chat-history"></div>
+          </div>
+        </section>
+        <div id="pending-message" hidden></div>
+      </div>
+      <div class="assistant-compose">
       <section id="composer" class="composer" aria-label="Mesaj yaz">
         <form id="analysis-form" novalidate>
           <div class="input-area">
@@ -233,13 +235,17 @@
                 </select>
               </label>
               <p id="answer-route" class="answer-route" role="status" hidden></p>
-              <button id="submit" type="submit" class="primary"><span id="spinner" class="spinner" hidden aria-hidden="true"></span><span id="submit-label">Gönder</span><span class="send-mark" aria-hidden="true">↑</span></button>
+              <button id="submit" type="submit" class="primary">Gönder <span class="send-mark" aria-hidden="true">↑</span></button>
             </div>
           </div>
           <p id="model-warning" class="muted" role="status" hidden></p>
-          <div id="analysis-status" class="status" role="status"></div>
           <div id="analysis-error" class="error-panel" role="alert" hidden></div>
         </form>
+      </section>
+
+      <section class="prompt-section" aria-labelledby="prompts-title">
+        <h2 id="prompts-title">Örnek başlangıçlar</h2>
+        <div id="prompt-grid" class="prompt-grid"></div>
       </section>
 
       <details id="workflow" class="workflow">
@@ -255,11 +261,13 @@
           </li>
           <li>
             <strong>Kaynağı aç, takip sorusu sor</strong>
-            <span>Kanıt Haritası’ndan bir aday seçip soldaki kaynağı oku. Sohbet’te “Hangi bilgi eksik?” diye sorabilirsin.</span>
+            <span>Kanıt Haritası’ndan bir aday seçip kaynak kaydını oku. Sohbet’te “Hangi bilgi eksik?” diye sorabilirsin.</span>
           </li>
         </ol>
       </details>
-    </div>
+
+      </div>
+    </section>
   </main>
 </body>
 </html>

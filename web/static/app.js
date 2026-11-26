@@ -25,7 +25,33 @@ const functions = {
   GV: "GOVERN", ID: "IDENTIFY", PR: "PROTECT", DE: "DETECT", RS: "RESPOND", RC: "RECOVER",
 };
 
-let examples = {};
+const examples = new Map();
+const exampleVariants = {
+  "PowerShell": [
+    ["Windows uç nokta uyarısı"],
+    ["Ofis belgesi sonrası alarm", "EDR, bir Word belgesi açıldıktan hemen sonra Word’ün alt süreci olarak PowerShell’in başladığını kaydetti. Kullanıcı belgeyi açtığını, kendisinin PowerShell çalıştırmadığını belirtti."],
+    ["Mesai dışı sunucu etkinliği", "Bir dosya sunucusunda gece yarısı bir hizmet hesabına ait PowerShell oturumu kaydedildi. O saat için onaylı bakım kaydı bulunamadı."],
+    ["İmzalı bakım betiği", "EDR, planlı bakım sırasında PowerShell etkinliği bildirdi. Çalışan betiğin imzası doğrulandı ve süreç kaydı onaylı bakım kaydıyla eşleşti."],
+  ],
+  "Zamanlanmış görev": [
+    ["Oturum açma etkinliği"],
+    ["Yeni görev kaydı", "Bir Windows istemcisinde zamanlanmış görev kaydı oluşturuldu. Görev, yeniden başlatma sonrasında tanınmayan bir uygulamayı çalıştıracak şekilde yapılandırılmış görünüyor."],
+    ["Mevcut görevin değiştirilmesi", "Uç nokta kaydı, haftalık rapor görevinin normalde çalıştırdığı uygulamanın değiştiğini gösteriyor. Değişiklik için onaylı bir iş kaydı bulunamadı."],
+    ["Yedekleme planı güncellemesi", "Zamanlanmış yedekleme görevinin saati değiştirildi. Görev geçmişi, değişiklik zamanının ve hesabın planlanan bakım kaydıyla eşleştiğini gösteriyor."],
+  ],
+  "Kimlik bilgilerine erişim": [
+    ["Süreç telemetrisi"],
+    ["Tarayıcı veri deposu uyarısı", "Uç nokta alarmı, tanınmayan bir sürecin tarayıcının kayıtlı parola veritabanını okuduğunu gösteriyor. O sırada tarayıcı kapalıydı."],
+    ["Olağan dışı kasa sorguları", "Gizli bilgi kasasının denetim kayıtlarında, bir hizmet hesabının kendi uygulaması dışındaki gizli bilgilere arka arkaya erişim istediği görüldü. İsteklerin çoğu reddedildi."],
+    ["Ardışık giriş hataları", "Kimlik sağlayıcısı, kısa süre içinde çok sayıda farklı kullanıcı hesabında başarısız parola denemesi kaydetti. İstekler aynı kaynaktan geldi ve hesapların çoğunda daha önce giriş hatası yoktu."],
+  ],
+  "Yetersiz bağlam": [
+    ["Gündelik kullanıcı etkinliği"],
+    ["Eksik oturum kaydı", "Destek kaydında yalnızca “olağan dışı giriş” yazıyor. Hesap, zaman, kaynak adresi ve giriş sonucu belirtilmemiş."],
+    ["Tek başına dosya adı", "Bir çalışan masaüstünde rapor adlı bir dosya gördüğünü bildirdi. Dosyanın türü, kaynağı veya çalıştırılıp çalıştırılmadığı bilinmiyor."],
+    ["Bağlamsız ağ uyarısı", "İzleme panelinde kısa süreli ağ trafiği artışı görüldü. İlgili cihaz, hedef adres ve işlem kaydı mevcut değil."],
+  ],
+};
 let modelName = "qwen3:8b";
 let modelIssue = "";
 let lastResult = null;
@@ -55,6 +81,8 @@ const followupPrompts = [
 ];
 const rows = new Map();
 const mapButtons = new Map();
+const evidenceBoard = new EvidenceBoard();
+let evidenceTrigger = null;
 
 function element(tag, text, className) {
   const node = document.createElement(tag);
@@ -142,20 +170,29 @@ function setBusy(busy) {
     control.disabled = busy;
   }
   incident.readOnly = busy;
-  byId("spinner").hidden = !busy;
-  byId("submit-label").textContent = busy ? "Yanıt hazırlanıyor" : "Gönder";
   form.setAttribute("aria-busy", String(busy));
 }
 
 function showView(name) {
-  for (const control of document.querySelectorAll("[data-view]")) {
-    const active = control.dataset.view === name;
-    control.setAttribute("aria-pressed", String(active));
-    byId("view-" + control.dataset.view).hidden = !active;
+  byId("view-map").hidden = name !== "map";
+  byId("view-case").hidden = name !== "case";
+  for (const control of document.querySelectorAll("[data-view][aria-pressed]")) {
+    control.setAttribute("aria-pressed", String(control.dataset.view === name));
   }
-  if (name === "case") {
-    clampToggle(byId("analyzed-text"), byId("expand-incident"), 3);
-  }
+  if (name === "case") clampToggle(byId("analyzed-text"), byId("expand-incident"), 3);
+}
+
+function openView(name) {
+  if (name !== "chat") showView(name);
+  const target = name === "chat" ? incident : name === "map" ? byId("board-viewport") : byId("result-title");
+  target.focus({preventScroll: true});
+  nudgeTo(target);
+}
+
+function displayEvidence(open) {
+  byId("evidence-sidebar").hidden = !open;
+  if (!open && evidenceTrigger?.isConnected) evidenceTrigger.focus({preventScroll: true});
+  if (!open) evidenceTrigger = null;
 }
 
 function setConversationMode(ready) {
@@ -169,6 +206,9 @@ function setConversationMode(ready) {
   byId("case-context").hidden = !ready;
   byId("workflow").hidden = ready;
   byId("source-preview").hidden = ready;
+  byId("download").hidden = !ready;
+  byId("nav-attack").disabled = !ready;
+  document.querySelector('[data-view="case"]').disabled = !ready;
   renderPrompts(ready);
   updateAnswerRoute();
 }
@@ -185,7 +225,7 @@ function renderPrompts(ready) {
         loadExample(sample);
       }
     }, "prompt-button");
-    control.disabled = running || (!ready && !examples[sample]);
+    control.disabled = running || (!ready && !examples.has(sample));
     control.append(element("strong", question), element("span", description));
     return control;
   }));
@@ -226,6 +266,7 @@ function chatTitle() {
 
 async function saveChat() {
   activeChatId ??= crypto.randomUUID();
+  evidenceBoard.bind(activeChatId);
   const chat = {
     title: chatTitle(), label: caseLabel, settings: caseSettings,
     result: lastResult, conversation, revision: activeRevision,
@@ -315,12 +356,14 @@ function resetCase(focus = true) {
   selected = null;
   rows.clear();
   mapButtons.clear();
+  displayEvidence(false);
+  evidenceBoard.render([], [], null);
+  showView("map");
   desktopEvidence.replaceChildren();
   byId("chat-history").replaceChildren();
   byId("model-block").replaceChildren();
-  byId("result-title").textContent = "Olay incelemesi";
+  byId("result-title").textContent = "Analiz Masası";
   byId("analysis-error").hidden = true;
-  byId("analysis-status").textContent = "";
   byId("skip-results").hidden = true;
   byId("workspace-empty").hidden = false;
   results.hidden = true;
@@ -334,10 +377,13 @@ function resetCase(focus = true) {
 }
 
 function loadExample(label) {
-  const text = examples[label];
-  if (running || !text) return;
+  const group = examples.get(label);
+  if (running || !group || !mayLeaveChat()) return;
+  const [context, text] = group.samples[group.next];
+  group.next = (group.next + 1) % group.samples.length;
   if (lastResult) resetCase(false);
   caseLabel = label;
+  group.preview.textContent = context;
   incident.value = text;
   updateInput();
   incident.focus();
@@ -345,9 +391,10 @@ function loadExample(label) {
 
 function nudgeTo(element) {
   const bounds = element.getBoundingClientRect();
-  const topbar = document.querySelector(".topbar").getBoundingClientRect();
-  if (bounds.top < Math.max(topbar.bottom, 0) || bounds.bottom > window.innerHeight) {
-    element.scrollIntoView({block: "start", behavior: reducedMotion.matches ? "auto" : "smooth"});
+  const scrollPanel = element.closest("#assistant-log, #view-case, #evidence-sidebar");
+  const viewport = scrollPanel?.getBoundingClientRect();
+  if (!viewport || bounds.top < viewport.top || bounds.bottom > viewport.bottom) {
+    element.scrollIntoView({block: "nearest", behavior: reducedMotion.matches ? "auto" : "smooth"});
   }
 }
 
@@ -364,7 +411,7 @@ function makeTurn(label, text, kind) {
   return turn;
 }
 
-function appendSources(panel, sources, needed) {
+function appendSources(panel, sources, needed, heading = "h4") {
   if (sources.length) {
     const citations = element("ul", undefined, "model-citations");
     for (const [index, source] of sources.entries()) {
@@ -372,19 +419,19 @@ function appendSources(panel, sources, needed) {
       const key = source.attack_id ? `attack:${id}` : `nist:${id}`;
       const label = `[${index + 1}] ${id}`;
       const control = rows.has(key)
-        ? button(label, () => revealEvidence(key, true, source), "mono")
+        ? button(label, () => revealEvidence(key, true, source.explanation ? source : null), "mono")
         : officialLink(source.source_url, label);
       if (!control) continue;
       const item = element("li");
       item.append(control);
       citations.append(item);
     }
-    panel.append(element("h4", "Yanıtın kaynakları"), citations);
+    panel.append(element(heading, "Yanıtın kaynakları"), citations);
   }
   if (needed?.length) {
     const list = element("ul", undefined, "missing-context");
     for (const item of needed) list.append(element("li", item));
-    panel.append(element("h4", "İnceleme için ek bilgiler"), list);
+    panel.append(element(heading, "İnceleme için ek bilgiler"), list);
   }
 }
 
@@ -405,33 +452,62 @@ function renderFollowup(question, answer, focus = true) {
 async function submitAnalysis(text) {
   const method = byId("mode").value;
   const k = Number(byId("limit").value);
-  const requestedMode = (byId("with-model").value === "local") ? "rag" : method;
+  const wantsExplanation = byId("with-model").value === "local";
   const data = await fetchJson("/api/analyze", {
     method: "POST", headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({text, mode: requestedMode, k, attack_method: method}),
+    body: JSON.stringify({text, mode: method, k, attack_method: method}),
   });
   if (!data.export) {
     throw new Error([data.attack.error, data.nist.error].filter(Boolean).join(" · "));
   }
   caseSettings = {method, k};
   lastResult = data;
-  renderResults(data, method, k);
-  incident.value = "";
+  const waitingForExplanation = wantsExplanation && data.attack.items.length > 0;
+  renderResults(data, method, k, waitingForExplanation);
+  byId("pending-message").hidden = true;
   setConversationMode(true);
-  await saveChat();
   byId("result-title").focus({preventScroll: true});
-  nudgeTo(byId("result-title"));
+  nudgeTo(byId("model-title"));
+
+  await saveChat();
+  if (waitingForExplanation) {
+    await requestOllamaExplanation();
+    await saveChat();
+  }
 }
 
-function mentionedTechniques(data) {
-  const normalize = (value) => ` ${value.toLocaleLowerCase("en-US").replace(/[^\p{L}\p{N}]+/gu, " ").trim()} `;
-  const query = normalize(data.export.query);
-  return data.attack.items.filter(item => {
-    const name = normalize(item.name).trim();
-    return query.includes(normalize(item.attack_id)) ||
-      (name.length >= 4 && query.includes(` ${name} `)) ||
-      (item.attack_id === "T1053.002" && query.includes(" at exe "));
-  }).slice(0, 2);
+async function requestOllamaExplanation() {
+  try {
+    const complete = await fetchJson("/api/analyze", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({text: lastResult.export.query, mode: "rag", k: caseSettings.k, attack_method: caseSettings.method}),
+      signal: AbortSignal.timeout(95_000),
+    });
+    if (complete.explanation?.status === "ok") {
+      lastResult = {...complete, search_duration_ms: lastResult.search_duration_ms ?? lastResult.duration_ms};
+    } else {
+      lastResult.explanation = {status: "error", error: complete.explanation?.error};
+    }
+  } catch (error) {
+    lastResult.explanation = {status: "error", error: error.name === "TimeoutError" ? "Zaman aşımı." : error.message};
+  }
+  renderOllamaAnswer(byId("ollama-answer"), lastResult);
+  updateExport();
+  if (selected && !activeCitation) selectRow(selected);
+}
+
+async function retryOllamaExplanation() {
+  if (running) return;
+  setBusy(true);
+  try {
+    renderOllamaAnswer(byId("ollama-answer"), lastResult, true);
+    byId("ollama-answer-title").focus({preventScroll: true});
+    await requestOllamaExplanation();
+    byId("ollama-answer-title").focus({preventScroll: true});
+    await saveChat();
+  } finally {
+    setBusy(false);
+  }
 }
 
 function readyQuestionIndex(question) {
@@ -497,7 +573,6 @@ async function submitFollowup(question, answer) {
   conversation.push({question, answer});
   incident.value = "";
   updateAnswerRoute();
-  showView("chat");
   renderFollowup(question, answer);
   updateExport();
   await saveChat();
@@ -518,29 +593,42 @@ form.addEventListener("submit", async (event) => {
 
   const followup = Boolean(lastResult);
   const readyAnswer = followup ? answerFromCase(text, lastResult) : null;
+  const draft = incident.value;
   byId("analysis-error").hidden = true;
   setBusy(true);
+  incident.value = "";
   const pending = byId("pending-message");
-  pending.replaceChildren(makeTurn("Sen", text, "analyst"));
+  const progress = element("div", undefined, "pending-response");
+  progress.setAttribute("role", "status");
+  const spinner = element("span", undefined, "spinner");
+  const elapsed = element("span", "0 sn", "pending-elapsed mono");
+  spinner.setAttribute("aria-hidden", "true");
+  elapsed.setAttribute("aria-hidden", "true");
+  const progressLabel = followup
+    ? (readyAnswer ? "Olay kaynakları inceleniyor…" : `${modelName} yanıt hazırlıyor…`)
+    : "Adaylar aranıyor…";
+  progress.append(spinner, element("span", progressLabel), elapsed);
+  pending.replaceChildren(makeTurn("Sen", text, "analyst"), progress);
   pending.hidden = false;
-  if (followup) showView("chat");
-  else byId("workspace-empty").hidden = true;
-  const status = byId("analysis-status");
-  if (followup) {
-    status.textContent = readyAnswer ? "Olay kaynakları inceleniyor…" : `${modelName} yanıt hazırlıyor…`;
-  } else {
-    status.textContent = "ATT&CK ve NIST kaynakları aranıyor…";
-  }
+  nudgeTo(pending);
+  if (!followup) byId("workspace-empty").hidden = true;
+  const started = performance.now();
+  const timer = setInterval(() => {
+    elapsed.textContent = `${Math.floor((performance.now() - started) / 1000)} sn`;
+  }, 1000);
   try {
     if (followup) await submitFollowup(text, readyAnswer);
     else await submitAnalysis(text);
   } catch (error) {
-    renderError(byId("analysis-error"), followup ? "Takip sorusu yanıtlanamadı." : "Olay analizi tamamlanamadı.", error.message);
+    incident.value = draft;
+    renderError(byId("analysis-error"), followup
+      ? "Yerel model bu soruyu tamamlayamadı. Tekrar deneyebilir veya hazır sorulardan birini kullanabilirsin."
+      : "Olay analizi tamamlanamadı.", followup ? null : error.message);
   } finally {
+    clearInterval(timer);
     pending.replaceChildren();
     pending.hidden = true;
     byId("workspace-empty").hidden = Boolean(lastResult);
-    status.textContent = "";
     updateAnswerRoute();
     setBusy(false);
   }
@@ -576,10 +664,50 @@ byId("retry-save").addEventListener("click", async () => {
 window.addEventListener("beforeunload", event => {
   if (unsavedChat) event.preventDefault();
 });
-byId("show-case").addEventListener("click", () => showView("case"));
-byId("map-case").addEventListener("click", () => showView("case"));
+byId("show-case").addEventListener("click", () => openView("case"));
+byId("board-start").addEventListener("click", () => openView("chat"));
+byId("nav-attack").addEventListener("click", () => {
+  showView("case");
+  const attack = sourceGroups.querySelector(".source-attack h3");
+  if (!attack) return;
+  attack.tabIndex = -1;
+  attack.focus({preventScroll: true});
+  nudgeTo(attack);
+});
+byId("close-evidence").addEventListener("click", () => displayEvidence(false));
+byId("evidence-sidebar").addEventListener("keydown", event => {
+  if (event.key === "Escape") displayEvidence(false);
+});
+byId("toggle-navigation").addEventListener("click", event => {
+  const control = event.currentTarget;
+  const collapsed = byId("workbench").classList.toggle("navigation-compact");
+  const label = collapsed ? "Gezinmeyi genişlet" : "Gezinmeyi daralt";
+  control.setAttribute("aria-expanded", String(!collapsed));
+  control.setAttribute("aria-label", label);
+  control.title = label;
+  control.textContent = collapsed ? "»" : "«";
+});
+function applyTheme(light) {
+  document.documentElement.dataset.theme = light ? "light" : "dark";
+  const control = byId("theme-toggle");
+  control.setAttribute("aria-pressed", String(light));
+}
+try {
+  applyTheme(localStorage.getItem("mitre-rag.theme") === "light");
+} catch {
+  applyTheme(false);
+}
+byId("theme-toggle").addEventListener("click", () => {
+  const light = document.documentElement.dataset.theme !== "light";
+  applyTheme(light);
+  try {
+    localStorage.setItem("mitre-rag.theme", light ? "light" : "dark");
+  } catch {
+    // Theme remains active for this page when storage is unavailable.
+  }
+});
 for (const control of document.querySelectorAll("[data-view]")) {
-  control.addEventListener("click", () => showView(control.dataset.view));
+  control.addEventListener("click", () => openView(control.dataset.view));
 }
 renderPrompts(false);
 
@@ -714,7 +842,7 @@ function renderEvidence(row) {
   }
 
   const match = activeCitation ?? (row.kind === "attack"
-    ? lastResult.explanation?.sources.find((item) => item.attack_id === row.code) : null);
+    ? lastResult.explanation?.sources?.find((item) => item.attack_id === row.code) : null);
   if (match) {
     const comment = element("section", undefined, "candidate-comment");
     comment.append(element("h4", "Modelin bu aday için açıklaması"), element("p", match.explanation));
@@ -729,33 +857,45 @@ function renderEvidence(row) {
   return panel;
 }
 
-function renderEvidenceMap() {
-  const map = byId("evidence-map");
-  const branches = byId("map-branches");
-  mapButtons.clear();
-  branches.replaceChildren();
-  byId("map-empty").hidden = rows.size !== 0;
-  map.querySelector(".map-root").hidden = rows.size === 0;
-
+function renderEvidenceMap(data, method) {
+  const query = data.export.query;
+  const count = rows.size;
+  const excerpt = query.length > 154 ? query.slice(0, 151) + "…" : query;
+  const cards = [
+    {id: "incident", type: "incident", label: "Olay kaydı", text: excerpt, x: 0, y: 84,
+      action: () => openView("case")},
+    {id: "analysis", type: "analysis", label: "Analiz sonucu", x: 228, y: 162,
+      text: count ? `${count} aday eşleşme` : "Aday eşleşme bulunamadı",
+      meta: modeLabels[method], action: () => openView("case")},
+  ];
+  const links = [["incident", "analysis"]];
+  let baseY = 0;
   for (const [kind, source] of Object.entries(sourceInfo)) {
-    const candidates = Array.from(rows).filter(([, entry]) => entry.row.kind === kind);
+    const candidates = [...rows].filter(([, entry]) => entry.row.kind === kind);
     if (!candidates.length) continue;
-
-    const branch = element("div", undefined, `map-branch source-${kind}`);
-    const heading = element("h4", source.name, "map-source");
-    const list = element("ul", undefined, "map-nodes");
-    list.setAttribute("aria-label", source.name + " adayları");
-    for (const [key, { row }] of candidates) {
-      const node = button(undefined, () => revealEvidence(key), "map-node");
-      node.setAttribute("aria-label", `${source.name} · ${row.code} · ${row.title}`);
-      node.append(element("code", row.code), element("span", row.title));
-      mapButtons.set(key, node);
-      const item = element("li");
-      item.append(node);
-      list.append(item);
+    const sourced = candidates.filter(([, {row}]) => row.url || row.body);
+    const reference = kind + "-source";
+    for (const [index, [key, {row}]] of candidates.entries()) {
+      cards.push({id: key, type: kind, label: kind === "attack" ? "Teknik adayı" : "NIST başlığı",
+        code: row.code, text: row.title, x: 476 + (index % 2) * 22, y: baseY + index * 107,
+        action: () => revealEvidence(key, true)});
+      links.push(["analysis", key]);
+      if (row.url || row.body) links.push([key, reference]);
     }
-    branch.append(heading, list);
-    branches.append(branch);
+    if (sourced.length) {
+      cards.push({id: reference, type: "reference", label: "Kaynaklar", text: source.name,
+        meta: `${sourced.length} kaynaklı aday`, x: 725, y: baseY + 107 * (candidates.length - 1) / 2,
+        action: () => {
+          const visible = sourced.filter(([, {li}]) => !li.hidden);
+          const [key] = visible.find(([candidate]) => candidate === selected) ?? visible[0] ?? sourced[0];
+          revealEvidence(key, true);
+        }});
+    }
+    baseY += candidates.length * 107 + 24;
+  }
+  mapButtons.clear();
+  for (const [key, control] of evidenceBoard.render(cards, links, activeChatId)) {
+    if (rows.has(key)) mapButtons.set(key, control);
   }
 }
 
@@ -763,18 +903,19 @@ function applySourceFilter(kind, value) {
   let firstVisible = null;
   let visible = 0;
   let total = 0;
+  const boardVisibility = [];
   for (const [key, { row, li }] of rows) {
     if (row.kind !== kind) continue;
     total += 1;
     const show = value === null || row.filterValues.includes(value);
     li.hidden = !show;
-    const node = mapButtons.get(key);
-    if (node) node.parentElement.hidden = !show;
+    boardVisibility.push([key, show]);
     if (show) {
       firstVisible ??= key;
       visible += 1;
     }
   }
+  evidenceBoard.updateVisibility(boardVisibility);
   for (const option of byId(`${kind}-filter-options`).children) {
     option.setAttribute("aria-pressed", String(option.dataset.filterValue === (value ?? "")));
   }
@@ -841,19 +982,15 @@ function clampToggle(text, control, lines) {
 }
 
 function revealEvidence(key, moveFocus = false, citation = null) {
+  if (!byId("evidence-sidebar").contains(document.activeElement)) evidenceTrigger = document.activeElement;
   selectRow(key, citation);
   const title = desktopEvidence.querySelector("h3");
   if (!title) return;
-  const sidebar = byId("workspace-sidebar");
-  if (getComputedStyle(sidebar).position === "sticky") {
-    const panelTop = desktopEvidence.getBoundingClientRect().top;
-    const bounds = sidebar.getBoundingClientRect();
-    const titleBottom = title.getBoundingClientRect().bottom;
-    if (panelTop < bounds.top || titleBottom > bounds.bottom - 18) {
-      sidebar.scrollBy({top: panelTop - bounds.top - 8, behavior: reducedMotion.matches ? "auto" : "smooth"});
-    }
-  } else {
-    nudgeTo(title);
+  displayEvidence(true);
+  byId("evidence-sidebar").scrollTop = 0;
+  const bounds = byId("evidence-sidebar").getBoundingClientRect();
+  if (bounds.top < 0 || bounds.bottom > window.innerHeight) {
+    byId("evidence-sidebar").scrollIntoView({block: "nearest"});
   }
   if (moveFocus) {
     title.tabIndex = -1;
@@ -861,70 +998,145 @@ function revealEvidence(key, moveFocus = false, citation = null) {
   }
 }
 
-function renderModel(explanation, data) {
+function mentionedTechniques(data) {
+  const normalize = (value) => ` ${value.toLocaleLowerCase("en-US").replace(/[^\p{L}\p{N}]+/gu, " ").trim()} `;
+  const query = normalize(data.export.query);
+  return data.attack.items.filter(item => {
+    const name = normalize(item.name).trim();
+    return query.includes(normalize(item.attack_id)) ||
+      (name.length >= 4 && query.includes(` ${name} `)) ||
+      (item.attack_id === "T1053.002" && query.includes(" at exe "));
+  }).slice(0, 2);
+}
+
+function renderSearchAssessment(block, data) {
+  const attack = data.attack.items;
+  const nist = data.nist.items;
+  const named = mentionedTechniques(data);
+  const names = (items) => items.map(item => `${item.name} (${item.attack_id})`).join(", ");
+
+  let assessment = "Olay metninden öne çıkan bir ATT&CK tekniği belirlenemedi.";
+  if (named.length) {
+    assessment = `Olay açıklamasında doğrudan geçen ad veya kodlara göre en güçlü ${named.length === 1 ? "aday" : "adaylar"} ${names(named)}. Bu eşleşmeyi değerlendirmek için alarmı tetikleyen davranışı ve ilgili süreç kayıtlarını incele.`;
+  } else if (attack.length) {
+    assessment = `Aramada ilk sırada ${names(attack.slice(0, 2))} yer alıyor. Eldeki açıklama bu teknikleri güçlü aday olarak göstermek için yetersiz. Alarmın hangi davranışı kaydettiği ve süreç bağlamı değerlendirmeyi netleştirir.`;
+  }
+  if (nist.length) {
+    assessment += ` Savunma tarafında NIST ${nist[0].id} incelenebilir.`;
+  }
+  block.append(element("p", assessment, "model-text"));
+}
+
+function renderOllamaAnswer(section, data, pending = false) {
+  const explanation = data.explanation;
+  section.hidden = !pending && !explanation;
+  if (section.hidden) return;
+
+  const header = element("header", undefined, "model-heading");
+  const title = element("h4", "Ollama’nın cevabı");
+  title.id = "ollama-answer-title";
+  title.tabIndex = -1;
+  header.append(title);
+  section.replaceChildren(header);
+  if (pending || explanation.status !== "ok") {
+    const timedOut = /zaman (sınır|aşım)/i.test(explanation?.error ?? "");
+    const message = pending ? "Ollama’dan ek açıklama bekleniyor…" : timedOut
+      ? "Ollama ayrılan süre içinde yanıt veremedi."
+      : "Ollama açıklamayı tamamlayamadı.";
+    const status = element("p", message, "response-progress");
+    status.setAttribute("role", "status");
+    section.append(status);
+    if (!pending && data.attack.items.length) {
+      section.append(button("Açıklamayı tekrar iste", retryOllamaExplanation, "text-button ollama-retry"));
+    }
+  } else {
+    const generation = data.export.generation;
+    if (Number.isFinite(generation?.seconds)) {
+      header.append(element("p", `${generation.model ?? modelName} · ${duration.format(generation.seconds)} sn`, "model-runtime mono"));
+    }
+    section.append(element("p", explanation.text, "model-text"));
+    const matches = explanation.sources.filter(source => source.attack_id);
+    if (matches.length) {
+      const candidates = element("p");
+      candidates.className = "response-candidates";
+      candidates.append(element("strong", matches.length === 1 ? "En güçlü aday" : "En güçlü adaylar"),
+        document.createTextNode(` · ${matches.map(source => `${source.name} (${source.attack_id})`).join(", ")}`));
+      section.append(candidates);
+    }
+    appendSources(section, explanation.sources, explanation.additional_data_needed, "h5");
+  }
+}
+
+function renderModel(data, method, k, waitingForExplanation) {
   const block = byId("model-block");
   block.replaceChildren();
   block.hidden = false;
   const header = element("header", undefined, "model-heading");
   const title = element("h3", "MITRE-RAG");
   title.id = "model-title";
-  const label = explanation?.status === "ok" ? `${modelName} · Ollama` : "Arama sonuçları";
-  header.append(title, element("p", label, "model-runtime mono"));
+  title.tabIndex = -1;
+  header.append(title, element("p", "Kaynak taramasına dayalı ön değerlendirme", "model-runtime mono"));
   block.append(header);
-  if (explanation?.status !== "ok") {
-    const summary = `ATT&CK için ${data.attack.items.length}, NIST için ${data.nist.items.length} aday bulundu.`;
-    block.append(element("p", summary), button("Adayları incele →", () => showView("case")));
-    if (explanation?.status === "error") {
-      const failure = element("div", undefined, "model-failure");
-      renderError(failure, "Yerel model açıklaması alınamadı.", explanation.error, false);
-      block.append(failure);
-    }
-    return;
+  renderSearchAssessment(block, data);
+
+  const answer = element("section", undefined, "ollama-answer");
+  answer.id = "ollama-answer";
+  answer.setAttribute("aria-labelledby", "ollama-answer-title");
+  renderOllamaAnswer(answer, data, waitingForExplanation);
+  block.append(answer);
+
+  const footer = element("footer", undefined, "response-footer");
+  const actions = element("div", undefined, "response-actions");
+  for (const [view, label] of [["case", "Olay dosyasını aç"], ["map", "Kanıt haritasını aç"]]) {
+    const action = button(label, () => openView(view), "response-action");
+    action.setAttribute("aria-controls", `view-${view}`);
+    const arrow = element("span", "→");
+    arrow.setAttribute("aria-hidden", "true");
+    action.append(arrow);
+    actions.append(action);
   }
-  block.append(element("p", explanation.text, "model-text"));
-  appendSources(block, explanation.sources, explanation.additional_data_needed);
-  block.append(button("Olay dosyasını aç →", () => showView("case")));
+  const searchTime = data.search_duration_ms ?? data.duration_ms;
+  const elapsed = searchTime < 100 ? "<0,1" : duration.format(searchTime / 1000);
+  const timeLabel = data.search_duration_ms == null && data.explanation?.status === "ok" ? "Analiz" : "Arama";
+  footer.append(actions, element("p", `${modeLabels[method]} · Kaynak başına en çok ${k} aday · ${timeLabel} ${elapsed} sn`, "response-meta"));
+  block.append(footer);
 }
 
-function renderResults(data, method, k) {
+function renderResults(data, method, k, waitingForExplanation = false) {
   rows.clear();
   sourceGroups.replaceChildren(renderSource("attack", data.attack), renderSource("nist", data.nist));
-  renderEvidenceMap();
+  showView("map");
+  renderEvidenceMap(data, method);
   renderSourceFilter("attack");
   renderSourceFilter("nist");
   results.hidden = false;
   byId("skip-results").hidden = false;
   byId("workspace-empty").hidden = true;
-  const elapsed = data.duration_ms < 100 ? "<0,1" : duration.format(data.duration_ms / 1000);
-  byId("result-meta").textContent = `${modeLabels[method]} · Kaynak başına en çok ${k} aday · ${elapsed} sn`;
   const title = chatTitle();
   byId("case-name").textContent = title;
   byId("result-title").textContent = title;
   byId("first-message").textContent = data.export.query;
   byId("analyzed-text").textContent = data.export.query;
-  showView("chat");
   selectRow(rows.keys().next().value ?? null);
-  renderModel(data.explanation, data);
+  renderModel(data, method, k, waitingForExplanation);
   updateExport();
 }
 
 fetchJson("/api/examples").then((data) => {
-  examples = data.examples;
   if (!byId("limit").matches(":focus") && byId("limit").selectedOptions[0].defaultSelected) {
     byId("limit").value = data.default_k;
   }
-  const contexts = {
-    "PowerShell": "Windows uç nokta uyarısı",
-    "Zamanlanmış görev": "Oturum açma etkinliği",
-    "Kimlik bilgilerine erişim": "Süreç telemetrisi",
-    "Yetersiz bağlam": "Gündelik kullanıcı etkinliği",
-  };
-  for (const label of Object.keys(examples)) {
+  for (const [label, text] of Object.entries(data.examples)) {
+    const [[context], ...variants] = exampleVariants[label] ?? [[label]];
+    const preview = element("span", context);
+    examples.set(label, {samples: [[context, text], ...variants], next: 0, preview});
     const card = button(undefined, () => loadExample(label), "example-card");
     card.dataset.example = label;
     card.setAttribute("aria-pressed", "false");
-    card.append(element("strong", label), element("span", contexts[label] ?? examples[label]),
-      element("small", "›", "example-arrow"));
+    const arrow = element("small", variants.length ? "↻" : "›", "example-arrow");
+    arrow.setAttribute("aria-hidden", "true");
+    card.title = variants.length ? "Sıradaki örneği yükle" : "Örneği yükle";
+    card.append(element("strong", label), preview, arrow);
     card.disabled = running;
     byId("example-cards").append(card);
   }
@@ -936,7 +1148,7 @@ fetchJson("/api/examples").then((data) => {
 
 fetchJson("/api/health").then((data) => {
   modelName = data.model;
-  byId("health").textContent = [
+  byId("source-status").textContent = [
     data.attack_ready ? "ATT&CK hazır" : "ATT&CK hazır değil",
     data.nist_ready ? `NIST CSF · ${data.nist_count} alt kategori` : "NIST hazır değil",
   ].join(" / ");
@@ -946,7 +1158,7 @@ fetchJson("/api/health").then((data) => {
   }
   updateAnswerRoute();
 }).catch(() => {
-  byId("health").textContent = "Analiz sunucusuna ulaşılamıyor";
+  byId("source-status").textContent = "Analiz sunucusuna ulaşılamıyor";
   modelIssue = "Yerel modelin durumu kontrol edilemedi.";
   updateAnswerRoute();
 });
